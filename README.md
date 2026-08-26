@@ -1,12 +1,90 @@
 # Agent Team Designer
 
+*Recruiting the right roles, skills, and models for governed AI agent teams.*
+
 Agent Team Designer is an OpenCode project for designing, auditing, restructuring, and
 installing high-quality AI agents and runnable multi-agent teams.
+
+
 
 It approaches agent design as organisational design: each role has one clear
 job, explicit reporting lines, justified capabilities, least-privilege access,
 and measurable completion criteria. It can work with software-engineering teams
 and non-software teams such as research, operations, or content production.
+
+## Getting started with OpenCode
+
+Complete these steps before using the Agent Team Designer project.
+
+### 1. Install OpenCode
+
+Use the [official OpenCode installation documentation](https://opencode.ai/docs/)
+for the latest installation options. On Windows, OpenCode recommends [Windows
+Subsystem for Linux (WSL)](https://opencode.ai/docs/windows-wsl) for the best
+experience.
+
+For WSL, macOS, or Linux, install OpenCode with the official installer:
+
+```bash
+curl -fsSL https://opencode.ai/install | bash
+```
+
+On Windows, you can also install the native binary with Chocolatey or Scoop:
+
+```powershell
+choco install opencode
+# or
+scoop install opencode
+```
+
+If Node.js and npm are already installed, npm is another supported option:
+
+```bash
+npm install -g opencode-ai
+```
+
+Check that the installation is available from a new terminal:
+
+```bash
+opencode --version
+```
+
+### 2. Connect an LLM provider
+
+OpenCode requires an LLM provider account and API key. From the OpenCode
+interface, run `/connect`, choose a provider, and follow its authentication
+steps. See the [provider documentation](https://opencode.ai/docs/providers/) for
+available providers. [OpenCode Zen](https://opencode.ai/docs/zen/) is the
+recommended starting point if you do not already have a provider configured.
+
+### 3. Start this project
+
+From the project directory, launch OpenCode:
+
+```powershell
+Set-Location E:\DEV\agentic-development\agent-team-designer
+opencode
+```
+
+OpenCode loads the repository's `opencode.json`, `AGENTS.md`, agent definition,
+and local skills automatically. The project default is
+`agent-team-designer`; you can also invoke it explicitly with
+`@agent-team-designer`.
+
+> If the repository is still stored in its legacy directory, replace the path
+> above with the directory containing this `README.md`.
+
+### 4. Try the agent
+
+Start with a read-only request, for example:
+
+```text
+Audit the existing agents in E:\DEV\example-project for responsibility overlap,
+permission risks, model fit, and delegation problems. Do not edit anything.
+```
+
+For an overview of the project workflow and safety gates, read
+[`AGENTS.md`](AGENTS.md) before asking the agent to create or install anything.
 
 ## Primary agent
 
