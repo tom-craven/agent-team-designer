@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "hr-recruiter",
+  "default_agent": "agent-team-designer",
   "instructions": [
     "AGENTS.md"
   ],

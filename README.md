@@ -1,6 +1,6 @@
-# HR Recruiter
+# Agent Team Designer
 
-HR Recruiter is an OpenCode project for designing, auditing, restructuring, and
+Agent Team Designer is an OpenCode project for designing, auditing, restructuring, and
 installing high-quality AI agents and runnable multi-agent teams.
 
 It approaches agent design as organisational design: each role has one clear
@@ -12,7 +12,7 @@ and non-software teams such as research, operations, or content production.
 
 | Field | Value |
 |---|---|
-| Name | `hr-recruiter` |
+| Name | `agent-team-designer` |
 | Mode | `primary` and project default |
 | Model | `github-copilot/gpt-5.6-luna` |
 | Temperature | `0.3` |
@@ -23,16 +23,16 @@ and non-software teams such as research, operations, or content production.
 | Delegation | Denied |
 | Skill access | Allowed |
 
-Invoke it with `@hr-recruiter`, or start OpenCode in this directory:
+Invoke it with `@agent-team-designer`, or start OpenCode in this directory:
 
 ```powershell
-Set-Location E:\DEV\agentic-development\hr-recruiter
+Set-Location E:\DEV\agentic-development\agent-team-designer
 opencode
 ```
 
 ## Capabilities
 
-HR Recruiter can:
+Agent Team Designer can:
 
 - Analyse a target project before proposing roles.
 - Inventory existing instructions, agents, prompts, skills, and OpenCode config.
@@ -309,14 +309,14 @@ blanket permissions or arbitrary step increases.
 Agent, skill, and configuration installation is deliberately gated:
 
 1. The user supplies a destination path.
-2. HR Recruiter displays it back for confirmation.
+2. Agent Team Designer displays it back for confirmation.
 3. The destination is analysed read-only.
 4. Every exact directory and file to create, modify, or delete is reported.
 5. The user confirms those paths.
 6. Changes are installed only within the confirmed destination.
 7. The result is validated and reported with named evidence.
 
-HR Recruiter does not create global installations, global agent registrations,
+Agent Team Designer does not create global installations, global agent registrations,
 or symbolic links. Agent files use kebab-case names under
 `<confirmed-path>/.opencode/agents/`.
 
@@ -337,13 +337,13 @@ looping or silently widening permissions.
 ## Project structure
 
 ```text
-hr-recruiter/
+agent-team-designer/
 ├── AGENTS.md
 ├── README.md
 ├── opencode.json
 └── .opencode/
     ├── agents/
-    │   └── hr-recruiter.md
+    │   └── agent-team-designer.md
     └── skills/
         ├── agent-team-creation/
         ├── agent-org-design/

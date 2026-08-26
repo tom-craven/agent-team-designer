@@ -1,10 +1,10 @@
 # AGENTS.md
 
-This project is dedicated to the **HR Recruiter** agent.
+This project is dedicated to the **Agent Team Designer** agent.
 
 ## Purpose
 
-The sole agent is `hr-recruiter`.  
+The sole agent is `agent-team-designer`.
 It designs, audits, and structures high-quality AI agents and multi-agent teams.
 
 ## Skills (upgraded via skill-creator)
@@ -23,7 +23,7 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 
 ## Working rules
 
-- All agent design work goes through `@hr-recruiter`
+- All agent design work goes through `@agent-team-designer`
 - Prefer existing skills from skills.sh when possible
 - Security-audit third-party skills before recommending install
 - Least-privilege permissions

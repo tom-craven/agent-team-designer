@@ -173,7 +173,7 @@ Require the agent to treat any of these as a doom loop:
 
 1. Stop the current approach immediately; do not retry a third time.
 2. Write the escalation report to a file rather than only printing it, so the
-   user can hand it back to `hr-recruiter`.
+   user can hand it back to `agent-team-designer`.
 3. Default path: `.opencode/reports/doom-loop-<agent-name>-<YYYYMMDD-HHMM>.md`
    inside the repository the agent is working in. If that directory cannot be
    created, report the content inline and say where it could not be written.
@@ -226,9 +226,9 @@ would unblock this work>
 <files changed, verified behaviour, and anything left in a partial state>
 ```
 
-### Handback to hr-recruiter
+### Handback to agent-team-designer
 
-The report is designed to be read by the `hr-recruiter` agent. When the report
+The report is designed to be read by the `agent-team-designer` agent. When the report
 identifies a missing capability, route it to `skill-creator` or `find-skills-sh`
 plus `skill-security-audit`. When it identifies a permission, step, model, or
 delegation problem, route it back through this skill. When it identifies
