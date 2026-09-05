@@ -30,6 +30,12 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 - One clear job per agent
 - Use `skill-creator` when a capability gap appears
 - Use `agent-team-creation` for end-to-end creation or restructuring of a runnable team
+- When the user requests `software-knowledge` on a new team, grant the
+  orchestrator / primary write access to `knowledge/**` (and the skill compile
+  / lint scripts) even if that agent otherwise has `edit: deny`. Do not put
+  `"*": deny` on `edit` in the same object — it wins over `knowledge/**`
+  allow and blocks Write/StrReplace. Deny named application paths instead.
+  Do not install the skill without a working `knowledge/` write permission.
 - Follow the gated lifecycle: analyse target project → design organisation →
   design each agent → resolve and audit skills → audit the complete team →
   create OpenCode configuration → validate runtime behaviour

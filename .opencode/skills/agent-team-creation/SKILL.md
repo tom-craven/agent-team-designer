@@ -71,6 +71,15 @@ For every approved role:
 3. Derive required capabilities from the role rather than assigning a generic
    skill bundle.
 4. Select mode, finite step budget, and least-privilege permissions.
+   When the user requested `software-knowledge` for the team, the orchestrator
+   / primary must receive `edit` allow on `knowledge/**` even if it otherwise
+   cannot edit the repository. Do **not** pair that allow with
+   `"*": deny` on `edit` — a catch-all edit deny wins and blocks writes to
+   `knowledge/`. Deny named application paths instead. Also allow the skill
+   compile and lint scripts that write `knowledge/index.yaml` and
+   `knowledge/graph.yaml`. Do not leave the orchestrator unable to create the
+   knowledge graph. Colocated `<Stem>.context.md` files beside source remain
+   an implementer permission.
 5. Define allowed delegation targets and doom-loop escalation behaviour.
 
 Agent files must be named `<agent-name>.md` in kebab-case under
@@ -92,6 +101,11 @@ Resolve each required capability in this order:
 
 Record every capability as `satisfied`, `new skill required`, `optional`, or
 `unresolved`. Do not silently omit unresolved essential capabilities.
+
+When `software-knowledge` is in the approved skill set, treat orchestrator
+write access to `knowledge/**` as an essential permission, not an optional
+broadening. An orchestrator with `edit: deny`, or with `"*": deny` in the
+same `edit` object as `knowledge/**`, is a skill-gate failure.
 
 ### 5. Audit the complete design
 

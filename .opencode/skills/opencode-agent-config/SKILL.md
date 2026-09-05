@@ -101,7 +101,12 @@ unfinished task complete.
 5. Use a prompt file for substantial prompts; use an inline prompt only when it
    is short and stable. The `{file:...}` path is relative to the config file.
 6. Apply least-privilege permissions. Prefer explicit command patterns over
-   unrestricted `bash: "allow"`.
+   unrestricted `bash: "allow"`. When `software-knowledge` is configured for
+   the team, the orchestrator / primary must have `edit` allow on
+   `knowledge/**` and bash allow for that skill's `compile_graph.py` and
+   `lint_knowledge.py` scripts. Do not keep a blanket `edit: deny` or
+   `"*": deny` on `edit` for that orchestrator — the catch-all deny wins
+   and blocks knowledge-graph writes.
 7. Set `steps` based on the workflow. For implementation, reserve steps for
    repository inspection, edits, tests, and final reporting.
 8. Validate that delegation targets named in `permission.task` actually exist.
@@ -120,8 +125,13 @@ Permission values are `allow`, `ask`, or `deny`. Supported gates include
 `todowrite`, `webfetch`, `websearch`, `lsp`, `skill`, `question`, and
 `doom_loop`.
 
-For `bash`, `task`, and file/search permissions, use ordered pattern objects.
-The **last matching rule wins**, so put the wildcard first:
+For `bash` and `task`, use ordered pattern objects. The **last matching
+rule wins**, so put the wildcard first.
+
+For `edit`, do **not** use `"*": deny` plus later path allows. A catch-all
+`edit` deny wins and blocks Write/StrReplace even when `knowledge/**` is
+listed as allow. Allow `knowledge/**` (and report paths) and deny named
+application trees instead.
 
 ```json
 "bash": {

@@ -93,8 +93,11 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    <High-quality system prompt>
    ```
 
-   Use pattern objects for `bash` and `task`, wildcard first, specific
-   exceptions after — the last matching rule wins.
+    Use pattern objects for `bash` and `task`, wildcard first, specific
+    exceptions after — the last matching rule wins.
+    Do **not** apply that pattern to `edit`. A catch-all `edit: "*": deny`
+    wins over later path allows, so Write/StrReplace cannot touch
+    `knowledge/**` even when it is listed as allow.
 
 3. **Quality standards**
    - One clear job per agent
@@ -104,7 +107,7 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    - Explicit “never do X” rules when needed
    - Model choice justified by current benchmarks
    
-4. **Software knowledge option for new agents and teams**  
+   4. **Software knowledge option for new agents and teams**  
    When the user asks to create a new agent or team, ask this focused question
    before finalising the design: **"Would you like the `software-knowledge`
    skill added to this agent/team?"** Do not assume the answer. If the user
@@ -114,8 +117,21 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    flows, and knowledge-graph maintenance. Include the skill in the generated
    team's OpenCode skill configuration and verify that its path is available.
    Preserve the skill's retrieval, writing, compilation, and linting rules; do
-   not reduce its workflow to optional prose. If the user answers no, do not
-   add or configure it, and record that decision in the design rationale.
+   not reduce its workflow to optional prose.
+   **Orchestrator write access is mandatory when this skill is requested:**
+   grant the team's orchestrator / primary (and any agent whose job includes
+   knowledge-graph maintenance) explicit `edit` allow on `knowledge/**`.
+   Never put `"*": deny` in the same `edit` object — a catch-all edit deny
+   wins and blocks Write/StrReplace under `knowledge/` even if
+   `knowledge/**` is listed as allow. Deny concrete application trees
+   instead (`src/**`, `tests/**`, `workspace/**`, …). Also allow the skill's
+   compile and lint scripts so they can write `knowledge/index.yaml` and
+   `knowledge/graph.yaml`. Instruct that orchestrator that `knowledge/` is
+   the only source tree it may write; it still must not implement
+   application code. Colocated `<Stem>.context.md` files beside source stay
+   with implementing specialists.
+   If the user answers no, do not add or configure it, and record that
+   decision in the design rationale.
 
 5. **Team design**  
    When designing multiple agents, use the agent-org-design skill and always show the structure, delegation rules, and rationale.

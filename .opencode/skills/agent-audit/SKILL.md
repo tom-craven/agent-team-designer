@@ -41,10 +41,15 @@ After reviewing agents individually, verify the assembled team:
 - separates implementation from independent risk gates where appropriate;
 - contains no undeclared or circular delegation;
 - does not rely on unavailable models, missing paths, or unaudited third-party skills;
-- can produce a useful handoff when permissions, dependencies, or steps block work.
+- can produce a useful handoff when permissions, dependencies, or steps block work;
+- if `software-knowledge` is installed, the orchestrator / primary can write
+  `knowledge/**` and run the skill compile/lint scripts, with no
+  `"*": deny` on the same `edit` object.
 
 Treat unresolved unavailable models, essential missing skills, dangerous
-permissions, invalid delegation, and responsibility collisions as critical.
+permissions, invalid delegation, responsibility collisions, and an
+orchestrator that cannot write `knowledge/` while `software-knowledge` is
+required as critical.
 
 ## Report format
 

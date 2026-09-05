@@ -30,6 +30,14 @@ User
       └── explore
 ```
 
+When the team includes `software-knowledge`, the orchestrator is still
+non-implementing for application code, but **must** be allowed to write
+`knowledge/**` and run the skill compile/lint scripts so it can create and
+maintain the knowledge graph. That exception is required, not optional.
+Do not express it as `"*": deny` plus `knowledge/**`: allow — the catch-all
+edit deny wins and blocks those writes. Deny `src/**`, `tests/**`, and
+other application trees instead.
+
 **3. Multiple primaries**
 - User switches with Tab
 - Only when user wants direct control of each role
