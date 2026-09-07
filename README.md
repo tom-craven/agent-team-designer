@@ -64,9 +64,7 @@ copilot skill list
 
 The five Copilot skill manifests under `.github/skills/` are discovery adapters.
 Their canonical content remains under `.opencode/skills/` so the two runtimes do
-not maintain independently edited copies. See
-[`docs/copilot-cli-validation.md`](docs/copilot-cli-validation.md) for the tested
-CLI version, model evidence, and validation results.
+not maintain independently edited copies.
 
 ### Keeping runtimes synchronized
 
@@ -528,8 +526,6 @@ agent-team-designer/
 │   └── copilot-instructions.md
 ├── AGENTS.md
 ├── README.md
-├── docs/
-│   └── copilot-cli-validation.md
 ├── opencode.json
 ├── scripts/
 │   └── sync_copilot_adapters.py
