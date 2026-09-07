@@ -70,35 +70,41 @@ CLI version, model evidence, and validation results.
 
 ### Keeping runtimes synchronized
 
-Shared role behavior lives in
-[`docs/agent-team-designer-behavior.md`](docs/agent-team-designer-behavior.md).
-Keep runtime-specific schema, tools, permissions, and model syntax in the
-corresponding `.github/agents/` or `.opencode/agents/` profile.
+Existing instructions, the OpenCode agent, and OpenCode skills remain canonical
+and are not rewritten for Copilot. Copilot CLI reads `AGENTS.md` directly. The
+files under `.github/` adapt the existing OpenCode agent and selected skills to
+Copilot's different schema and discovery paths.
 
 After changing any canonical skill used by Copilot, regenerate the discovery
 adapters:
 
 ```bash
-python3 scripts/sync_runtime_docs.py
+python3 scripts/sync_copilot_adapters.py
 ```
 
-Before committing any agent, skill, instruction, or runtime configuration
-change, run the non-writing check:
+When `.opencode/agents/agent-team-designer.md` changes, review and adapt the
+Copilot profile, then record the reviewed source version:
 
 ```bash
-python3 scripts/sync_runtime_docs.py --check
+python3 scripts/sync_copilot_adapters.py --accept-agent-source
 ```
 
-The `Runtime sync` GitHub Actions workflow runs the same check for pull requests.
-It fails when generated adapters are stale, a runtime stops referencing the
-canonical behavior, shared safety invariants disappear, Copilot gains broader
-tools, or core OpenCode discovery and permission settings drift.
+Before committing, run the non-writing check:
+
+```bash
+python3 scripts/sync_copilot_adapters.py --check
+```
+
+The `Copilot adapters` GitHub Actions workflow runs the same check for pull
+requests. It fails when generated skill adapters are stale, the OpenCode agent
+changes without review of its Copilot translation, or the Copilot profile no
+longer uses its read-only schema and tool set.
 
 ## Runtime ownership
 
 | Runtime | Configuration |
 |---|---|
-| Shared repository behavior | `AGENTS.md`, `docs/agent-team-designer-behavior.md` |
+| Shared repository behavior | `AGENTS.md` |
 | GitHub Copilot CLI | `.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/` |
 | OpenCode | `opencode.json`, `.opencode/agents/`, `.opencode/skills/` |
 
@@ -523,11 +529,10 @@ agent-team-designer/
 ├── AGENTS.md
 ├── README.md
 ├── docs/
-│   ├── agent-team-designer-behavior.md
 │   └── copilot-cli-validation.md
 ├── opencode.json
 ├── scripts/
-│   └── sync_runtime_docs.py
+│   └── sync_copilot_adapters.py
 └── .opencode/
     ├── agents/
     │   └── agent-team-designer.md
