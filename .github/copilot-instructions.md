@@ -3,6 +3,8 @@
 This repository defines and validates the `agent-team-designer`, which designs
 and audits AI agents, prompts, permissions, model choices, skills, and team
 structures. Follow `AGENTS.md` as the canonical repository behavior.
+Follow `docs/agent-team-designer-behavior.md` as the canonical runtime-neutral
+agent behavior. Copilot profiles may narrow, but must not weaken, those rules.
 
 ## Runtime Boundaries
 
