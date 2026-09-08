@@ -53,7 +53,10 @@ SKIP_DIR_NAMES = {
     ".venv",
     "venv",
     "__pycache__",
-    ".opencode",
+}
+
+SKIP_RELATIVE_DIRS = {
+    (".opencode", "skills", "software-knowledge", "assets"),
 }
 
 
@@ -74,10 +77,16 @@ def iter_knowledge_files(root: Path) -> list[Path]:
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        if any(part in SKIP_DIR_NAMES for part in path.parts):
+        relative = path.relative_to(root)
+        if any(part in SKIP_DIR_NAMES for part in relative.parts):
+            continue
+        if any(
+            relative.parts[: len(directory)] == directory
+            for directory in SKIP_RELATIVE_DIRS
+        ):
             continue
         name = path.name
-        rel = path.relative_to(root).as_posix()
+        rel = relative.as_posix()
         if name.endswith(".context.md"):
             files.append(path)
             continue

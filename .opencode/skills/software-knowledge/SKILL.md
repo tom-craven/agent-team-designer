@@ -64,6 +64,34 @@ Full rules — `references/retrieval.md`.
 
 ## Workflows
 
+### Install Python dependencies
+
+The graph scripts require Python 3 and PyYAML. Install the dependency in the
+repository's existing virtual environment rather than into the global Python
+installation:
+
+```bash
+python -m pip install PyYAML
+```
+
+To run the regression tests, also install pytest:
+
+```bash
+python -m pip install pytest
+```
+
+If the repository has a dependency manifest or managed environment, add or
+install `PyYAML` and `pytest` through that existing mechanism instead of using
+ad-hoc global packages. Verify the installation before compiling:
+
+```bash
+python -c "import yaml; print(yaml.__version__)"
+python -m pytest <this-skill>/tests
+```
+
+If a dependency cannot be installed, report compilation or tests as blocked or
+skipped; do not describe them as successful.
+
 ### Scaffold a repo
 
 From the repository root:
@@ -79,7 +107,7 @@ Adoption sequence — `references/adoption.md`.
 ### Add or update a type node
 
 1. Confirm the type is public or easy to misuse. If not, skip.
-2. Copy `assets/type.context.md` to `<Stem>.context.md` beside the source. The template stays under the skill; compile skips `.opencode`.
+2. Copy `assets/type.context.md` to `<Stem>.context.md` beside the source. The template stays under the skill; compilation excludes the skill's `assets/` directory.
 3. Set `id` as `type:<bounded-context>.<TypeName>` (see ontology).
 4. Write Purpose, Non-goals, Invariants, Failure modes, How to change it.
 5. Link edges — `depends_on`, `must_not_depend_on`, `used_in`, `decided_by`, `invariants`.
@@ -98,7 +126,7 @@ python <this-skill>/scripts/compile_graph.py .
 python <this-skill>/scripts/lint_knowledge.py .
 ```
 
-`compile_graph.py` walks `**/*.context.md` and `knowledge/**/*.md`, reads YAML frontmatter, and writes `knowledge/index.yaml` plus `knowledge/graph.yaml`. It skips `.opencode` (skill templates such as `assets/type.context.md` are not product nodes).
+`compile_graph.py` walks `**/*.context.md` and `knowledge/**/*.md`, reads YAML frontmatter, and writes `knowledge/index.yaml` plus `knowledge/graph.yaml`. It specifically excludes `.opencode/skills/software-knowledge/assets/`, so bundled templates such as `type.context.md` are not product nodes; real context nodes elsewhere remain discoverable.
 
 `lint_knowledge.py` fails on broken IDs, missing `source` paths, unknown frontmatter keys or edge keys, invalid edge value shapes, unknown edge targets, and template markers left in `status: active` nodes. When adding an ontology edge, update the edge table in `references/ontology.md`, `EDGE_KEYS` in `scripts/compile_graph.py`, and its accepted metadata keys together.
 

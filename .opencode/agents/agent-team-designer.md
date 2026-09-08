@@ -14,6 +14,14 @@ permission:
     "git log*": allow
     "mkdir *": allow
     "New-Item -ItemType Directory*": allow
+    "python -m pytest .opencode/skills/software-knowledge/tests*": allow
+    "python -m py_compile .opencode/skills/software-knowledge/scripts/*": allow
+    "python .opencode/skills/software-knowledge/scripts/compile_graph.py *": allow
+    "python .opencode/skills/software-knowledge/scripts/lint_knowledge.py *": allow
+    "python3 -m pytest .opencode/skills/software-knowledge/tests*": allow
+    "python3 -m py_compile .opencode/skills/software-knowledge/scripts/*": allow
+    "python3 .opencode/skills/software-knowledge/scripts/compile_graph.py *": allow
+    "python3 .opencode/skills/software-knowledge/scripts/lint_knowledge.py *": allow
   task:
     "*": deny
   skill: allow

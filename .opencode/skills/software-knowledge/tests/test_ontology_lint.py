@@ -24,6 +24,25 @@ def write_node(root: Path, frontmatter: dict[str, object]) -> None:
     )
 
 
+def write_type_node(root: Path, relative_path: str, source: str, node_id: str) -> None:
+    source_path = root / source
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text("class Order:\n    pass\n", encoding="utf-8")
+    context_path = root / relative_path
+    context_path.parent.mkdir(parents=True, exist_ok=True)
+    context_path.write_text(
+        "---\n"
+        f"id: {node_id}\n"
+        "kind: type\n"
+        "name: Order\n"
+        f"source: {source}\n"
+        "status: active\n"
+        "updated: 2026-09-08\n"
+        "---\n\n# Order\n\nOwns an order.\n",
+        encoding="utf-8",
+    )
+
+
 def test_applies_to_is_compiled_and_not_reported_as_unknown() -> None:
     assert "applies_to" in documented_edge_keys()
     with tempfile.TemporaryDirectory() as directory:
@@ -113,3 +132,60 @@ def test_opencode_skill_type_template_is_not_compiled_or_linted() -> None:
             assert main() == 0
         finally:
             sys.argv = old_argv
+
+
+def test_source_tree_context_node_is_compiled_and_linted() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write_type_node(
+            root,
+            "src/orders/Order.context.md",
+            "src/orders/order.py",
+            "type:orders.order",
+        )
+
+        index, graph, warnings = compile_repo(root)
+
+        assert not warnings
+        assert index["nodes"] == [
+            {
+                "id": "type:orders.order",
+                "kind": "type",
+                "name": "Order",
+                "path": "src/orders/Order.context.md",
+                "status": "active",
+                "source": "src/orders/order.py",
+                "bounded_context": None,
+                "owners": [],
+                "tags": [],
+            }
+        ]
+        assert graph["nodes"] == [
+            {
+                "id": "type:orders.order",
+                "kind": "type",
+                "path": "src/orders/Order.context.md",
+            }
+        ]
+        old_argv = sys.argv
+        try:
+            sys.argv = ["lint_knowledge.py", str(root)]
+            assert main() == 0
+        finally:
+            sys.argv = old_argv
+
+
+def test_context_node_elsewhere_under_opencode_is_not_excluded() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write_type_node(
+            root,
+            ".opencode/project/Order.context.md",
+            ".opencode/project/order.py",
+            "type:opencode.order",
+        )
+
+        index, _graph, warnings = compile_repo(root)
+
+        assert not warnings
+        assert {node["id"] for node in index["nodes"]} == {"type:opencode.order"}
