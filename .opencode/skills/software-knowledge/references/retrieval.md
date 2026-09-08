@@ -28,7 +28,7 @@ Query `knowledge/graph.yaml` first (or compile it). Useful walks:
 - dependents of a type about to be deleted
 - all nodes `guarded_by` an invariant
 - types `used_in` a flow
-- decisions that `applies_to` a module
+- decisions, invariants, or patterns that `applies_to` a module or type
 
 Fall back to semantic search only for questions the graph cannot name.
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compile knowledge nodes into knowledge/index.yaml and knowledge/graph.yaml."""
+"""Compile knowledge nodes into knowledge/index.yaml and knowledge/graph.yaml.
+
+The edge-key mapping below is the executable mirror of the edge table in
+references/ontology.md. Keep both in sync when adding an ontology edge.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +37,27 @@ EDGE_KEYS = {
     "enforced_by": "enforced_by",
 }
 
-SKIP_DIR_NAMES = {".git", "node_modules", "dist", "build", ".venv", "venv", "__pycache__"}
+METADATA_KEYS = {
+    "id", "kind", "name", "language", "status", "updated", "source", "bounded_context",
+    "owners", "tags", "implements", "depends_on", "must_not_depend_on",
+    "collaborates_with", "emits", "consumes", "guarded_by", "invariants",
+    "decided_by", "used_in", "uses", "realized_by", "applies_to",
+    "supersedes", "superseded_by", "emitted_by", "consumers", "enforced_by",
+}
+
+SKIP_DIR_NAMES = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "__pycache__",
+}
+
+SKIP_RELATIVE_DIRS = {
+    (".opencode", "skills", "software-knowledge", "assets"),
+}
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, Any] | None, str]:
@@ -53,10 +77,16 @@ def iter_knowledge_files(root: Path) -> list[Path]:
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        if any(part in SKIP_DIR_NAMES for part in path.parts):
+        relative = path.relative_to(root)
+        if any(part in SKIP_DIR_NAMES for part in relative.parts):
+            continue
+        if any(
+            relative.parts[: len(directory)] == directory
+            for directory in SKIP_RELATIVE_DIRS
+        ):
             continue
         name = path.name
-        rel = path.relative_to(root).as_posix()
+        rel = relative.as_posix()
         if name.endswith(".context.md"):
             files.append(path)
             continue
