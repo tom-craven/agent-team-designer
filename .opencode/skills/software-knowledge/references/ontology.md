@@ -81,11 +81,20 @@ Store as ID lists in frontmatter. Direction is from the current node to each lis
 | `must_not_depend_on` | Forbidden dependency, even if not currently imported |
 | `collaborates_with` | Runtime partner that is not a hard compile dependency |
 | `emits` / `consumes` | Events or commands |
-| `guarded_by` / `invariants` | Rules that constrain this node |
+| `guarded_by` | Rules that constrain this node |
+| `invariants` | Alias for `guarded_by` |
 | `decided_by` | ADRs that justify the design |
 | `used_in` | Flows this type participates in |
+| `uses` | Alias for `used_in` |
 | `realized_by` | Capability implemented by these types/flows |
-| `supersedes` / `superseded_by` | Evolution |
+| `applies_to` | Decision, invariant, or pattern applies to these nodes |
+| `enforced_by` | Invariant is enforced by these types, tests, linters, or runbooks |
+| `emitted_by` | Event or contract is emitted by these types or flows |
+| `consumers` | Event or contract is consumed by these types or flows; canonical graph edge is `consumed_by` |
+| `supersedes` | Evolution |
+| `superseded_by` | Evolution |
+
+`invariants` and `uses` are accepted frontmatter aliases for `guarded_by` and `used_in`. `consumers` is accepted as the readable inverse alias for `consumed_by`. The compiler emits the canonical edge type shown in the table.
 
 Do not encode the full import graph. Extractors can do that from source. Intent edges are the ones an agent would otherwise get wrong.
 

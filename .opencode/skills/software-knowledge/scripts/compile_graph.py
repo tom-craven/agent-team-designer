@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compile knowledge nodes into knowledge/index.yaml and knowledge/graph.yaml."""
+"""Compile knowledge nodes into knowledge/index.yaml and knowledge/graph.yaml.
+
+The edge-key mapping below is the executable mirror of the edge table in
+references/ontology.md. Keep both in sync when adding an ontology edge.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +37,24 @@ EDGE_KEYS = {
     "enforced_by": "enforced_by",
 }
 
-SKIP_DIR_NAMES = {".git", "node_modules", "dist", "build", ".venv", "venv", "__pycache__"}
+METADATA_KEYS = {
+    "id", "kind", "name", "language", "status", "updated", "source", "bounded_context",
+    "owners", "tags", "implements", "depends_on", "must_not_depend_on",
+    "collaborates_with", "emits", "consumes", "guarded_by", "invariants",
+    "decided_by", "used_in", "uses", "realized_by", "applies_to",
+    "supersedes", "superseded_by", "emitted_by", "consumers", "enforced_by",
+}
+
+SKIP_DIR_NAMES = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".opencode",
+}
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, Any] | None, str]:

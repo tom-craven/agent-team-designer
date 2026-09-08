@@ -2,7 +2,7 @@
 name: software-knowledge
 description: Document software intent as a typed knowledge graph next to the code. Use when adding class context files, AGENTS.md maps, ADRs, bounded-context docs, architecture knowledge, compiling knowledge/graph.yaml, scaffolding knowledge/, or before editing a public type so invariants and decisions load first.
 metadata:
-  version: "1.0"
+  version: "1.1"
   type: workflow
 ---
 
@@ -79,7 +79,7 @@ Adoption sequence — `references/adoption.md`.
 ### Add or update a type node
 
 1. Confirm the type is public or easy to misuse. If not, skip.
-2. Copy `assets/type.context.md`.
+2. Copy `assets/type.context.md` to `<Stem>.context.md` beside the source. The template stays under the skill; compile skips `.opencode`.
 3. Set `id` as `type:<bounded-context>.<TypeName>` (see ontology).
 4. Write Purpose, Non-goals, Invariants, Failure modes, How to change it.
 5. Link edges — `depends_on`, `must_not_depend_on`, `used_in`, `decided_by`, `invariants`.
@@ -98,9 +98,11 @@ python <this-skill>/scripts/compile_graph.py .
 python <this-skill>/scripts/lint_knowledge.py .
 ```
 
-`compile_graph.py` walks `**/*.context.md` and `knowledge/**/*.md`, reads YAML frontmatter, and writes `knowledge/index.yaml` plus `knowledge/graph.yaml`.
+`compile_graph.py` walks `**/*.context.md` and `knowledge/**/*.md`, reads YAML frontmatter, and writes `knowledge/index.yaml` plus `knowledge/graph.yaml`. It skips `.opencode` (skill templates such as `assets/type.context.md` are not product nodes).
 
-`lint_knowledge.py` fails on broken IDs, missing `source` paths, unknown edge targets, and template markers left in `status: active` nodes.
+`lint_knowledge.py` fails on broken IDs, missing `source` paths, unknown frontmatter keys or edge keys, invalid edge value shapes, unknown edge targets, and template markers left in `status: active` nodes. When adding an ontology edge, update the edge table in `references/ontology.md`, `EDGE_KEYS` in `scripts/compile_graph.py`, and its accepted metadata keys together.
+
+The linter also compares the documented edge table with the compiler's `EDGE_KEYS` mapping. This prevents references from introducing a queryable edge such as `applies_to` without adding it to the ontology and compiler.
 
 ### Keep the graph true
 
