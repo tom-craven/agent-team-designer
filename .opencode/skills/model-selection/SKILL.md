@@ -38,6 +38,25 @@ Never read `auth.json` or any credential file to enumerate models.
 
 If you cannot verify availability, say so and offer the closest confirmed option.
 
+## Step 1b — Check the retirement table (mandatory)
+
+Availability in the main supported-models table is **not** sufficient. On the same
+page, check the **Model retirement history** table before recommending anything.
+
+- A model can appear GA in the main table while already carrying a retirement date.
+- Retirement rows may carry footnotes that preserve access for a narrow group only
+  (for example, Claude Sonnet 4.6 retired 2026-09-01 but remains available to
+  individual subscribers on annual plans).
+- Also check for models restricted by default: pre-GA models, open-weight models,
+  and models outside GitHub's data-retention agreement are disabled by default.
+
+Report the retirement date and the vendor's suggested alternative whenever one
+exists. Never recommend a model whose retirement date has passed unless the user
+has confirmed in this conversation that a documented exemption applies to them.
+
+When auditing existing agents, check their configured models against this table
+too. A model that was valid when the agent was written may have been retired since.
+
 ## Step 2 — Pick the ranking axis
 
 | Agent role | Primary axis | Copilot-family preference |
