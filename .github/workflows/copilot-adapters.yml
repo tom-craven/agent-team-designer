@@ -2,35 +2,9 @@ name: Copilot adapters
 
 on:
   pull_request:
-    paths:
-      - AGENTS.md
-      - .opencode/agents/agent-team-designer.md
-      - .opencode/skills/agent-audit/**
-      - .opencode/skills/agent-org-design/**
-      - .opencode/skills/model-selection/**
-      - .opencode/skills/prompt-patterns/**
-      - .opencode/skills/skill-security-audit/**
-      - .github/agents/**
-      - .github/skills/**
-      - .github/copilot-instructions.md
-      - scripts/sync_copilot_adapters.py
-      - .github/workflows/copilot-adapters.yml
   push:
     branches:
       - main
-    paths:
-      - AGENTS.md
-      - .opencode/agents/agent-team-designer.md
-      - .opencode/skills/agent-audit/**
-      - .opencode/skills/agent-org-design/**
-      - .opencode/skills/model-selection/**
-      - .opencode/skills/prompt-patterns/**
-      - .opencode/skills/skill-security-audit/**
-      - .github/agents/**
-      - .github/skills/**
-      - .github/copilot-instructions.md
-      - scripts/sync_copilot_adapters.py
-      - .github/workflows/copilot-adapters.yml
 
 permissions:
   contents: read
