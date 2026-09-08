@@ -43,6 +43,31 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 - When creating a multi-agent team, also create or update the team's OpenCode configuration (`opencode.json` or `opencode.jsonc`) so the agents, modes, models, prompts, permissions, and delegation settings are runnable—not just documented in Markdown.
 - Before changing or creating OpenCode configuration, use the `opencode-agent-config` skill and verify the configuration against the generated agent definitions.
 
+## Cross-runtime adapter maintenance
+
+These rules apply whether the repository is being maintained with OpenCode or
+GitHub Copilot:
+
+- Treat `.opencode/skills/**/SKILL.md` as the canonical skill source. Files
+  under `.github/skills/` are generated Copilot discovery adapters; never edit
+  them directly or use them to overwrite the canonical OpenCode skill.
+- Before changing the canonical agent or a canonical skill with a Copilot
+  adapter, run `python3 scripts/sync_copilot_adapters.py --check` to detect
+  existing drift.
+- When a Copilot agent changes skill behavior, it must make the change in the
+  canonical `.opencode/skills/**/SKILL.md` file, then run
+  `python3 scripts/sync_copilot_adapters.py` to update the Copilot adapter.
+- When an OpenCode agent changes a canonical skill with a Copilot adapter, it
+  must run `python3 scripts/sync_copilot_adapters.py` to update the Copilot
+  adapter.
+- After changing `.opencode/agents/agent-team-designer.md` in either runtime,
+  review and adapt `.github/agents/agent-team-designer.agent.md`, then run
+  `python3 scripts/sync_copilot_adapters.py --accept-agent-source`.
+- Before completion, run `python3 scripts/sync_copilot_adapters.py --check` and
+  include any generated Copilot adapter changes in the same change.
+- If the active profile cannot edit files or execute the script, report the
+  required maintenance as `BLOCKED`; do not claim the runtimes are synchronized.
+
 ## OpenCode team creation context
 
 When creating or installing a team into a software repository, configure the

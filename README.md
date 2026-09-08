@@ -73,6 +73,12 @@ and are not rewritten for Copilot. Copilot CLI reads `AGENTS.md` directly. The
 files under `.github/` adapt the existing OpenCode agent and selected skills to
 Copilot's different schema and discovery paths.
 
+`AGENTS.md` instructs maintainers using either runtime to check for drift before
+changing an adapted source. Copilot and OpenCode both make skill changes in the
+canonical `.opencode/skills/` file, then regenerate the corresponding Copilot
+discovery adapter. The thin adapters are never reverse-synchronized into the
+canonical skill.
+
 After changing any canonical skill used by Copilot, regenerate the discovery
 adapters:
 
