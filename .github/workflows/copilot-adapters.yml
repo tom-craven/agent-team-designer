@@ -14,5 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test Copilot adapter synchronization
+        run: python3 -m unittest discover -s tests -p 'test_sync_copilot_adapters.py'
       - name: Check Copilot adapters
         run: python3 scripts/sync_copilot_adapters.py --check

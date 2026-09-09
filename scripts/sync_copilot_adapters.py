@@ -80,8 +80,13 @@ def expected_adapters() -> dict[Path, str]:
     }
 
 
+def normalized_digest(content: bytes) -> str:
+    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
+
+
 def source_agent_digest() -> str:
-    return hashlib.sha256((ROOT / SOURCE_AGENT).read_bytes()).hexdigest()
+    return normalized_digest((ROOT / SOURCE_AGENT).read_bytes())
 
 
 def generate_adapters() -> None:
@@ -117,7 +122,7 @@ def parse_agent_frontmatter(text: str) -> dict[str, object]:
         if key in data:
             raise ValueError(f"duplicate Copilot frontmatter key: {key}")
         if value:
-            data[key] = value.strip().strip('"\'')
+            data[key] = parse_string_scalar(value, key)
             current_list = None
             current_key = key
         else:
@@ -127,6 +132,39 @@ def parse_agent_frontmatter(text: str) -> dict[str, object]:
     if current_list is not None and not current_list:
         raise ValueError(f"Copilot frontmatter list is empty: {current_key}")
     return data
+
+
+def parse_string_scalar(value: str, key: str) -> str:
+    value = value.strip()
+    if value.startswith('"') and value.endswith('"'):
+        parsed = json.loads(value)
+        if isinstance(parsed, str):
+            return parsed
+    elif value.startswith("'") and value.endswith("'"):
+        return value[1:-1].replace("''", "'")
+    elif not re.fullmatch(
+        r"(?i:null|~|true|false|yes|no|on|off|[-+]?(?:\d+(?:\.\d*)?|\.\d+))",
+        value,
+    ) and not value.startswith(("[", "{", "|", ">", "&", "*", "!")):
+        return value
+    raise ValueError(f"Copilot frontmatter {key} must be a string")
+
+
+def validate_agent_metadata(copilot: dict[str, object]) -> list[str]:
+    errors: list[str] = []
+    if set(copilot) != {"name", "description", "model", "tools"}:
+        errors.append("Copilot agent frontmatter has unexpected or missing keys")
+    if copilot.get("name") != "agent-team-designer":
+        errors.append("Copilot agent name must be agent-team-designer")
+    description = copilot.get("description")
+    if not isinstance(description, str) or not description.strip():
+        errors.append("Copilot agent description must be a non-empty string")
+    if copilot.get("tools") != ["read", "search", "web"]:
+        errors.append("Copilot agent must expose only read, search, and web")
+    model = copilot.get("model")
+    if not isinstance(model, str) or not model or "/" in model:
+        errors.append("Copilot agent model must be a bare CLI identifier")
+    return errors
 
 
 def validate() -> list[str]:
@@ -156,13 +194,7 @@ def validate() -> list[str]:
     except ValueError as error:
         errors.append(str(error))
         copilot = {}
-    if set(copilot) != {"name", "description", "model", "tools"}:
-        errors.append("Copilot agent frontmatter has unexpected or missing keys")
-    if copilot.get("tools") != ["read", "search", "web"]:
-        errors.append("Copilot agent must expose only read, search, and web")
-    model = copilot.get("model", "")
-    if not isinstance(model, str) or not model or "/" in model:
-        errors.append("Copilot agent model must be a bare CLI identifier")
+    errors.extend(validate_agent_metadata(copilot))
     if len(copilot_text) >= 30_000:
         errors.append("Copilot agent profile exceeds the 30,000-character limit")
 
