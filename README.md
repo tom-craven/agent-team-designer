@@ -2,8 +2,9 @@
 
 *Recruiting the right roles, skills, and models for governed AI agent teams.*
 
-Agent Team Designer is an OpenCode project for designing, auditing, restructuring, and
-installing high-quality AI agents and runnable multi-agent teams.
+Agent Team Designer is a GitHub Copilot CLI and OpenCode project for designing,
+auditing, restructuring, and installing high-quality AI agents and runnable
+multi-agent teams.
 
 
 
@@ -11,6 +12,110 @@ It approaches agent design as organisational design: each role has one clear
 job, explicit reporting lines, justified capabilities, least-privilege access,
 and measurable completion criteria. It can work with software-engineering teams
 and non-software teams such as research, operations, or content production.
+
+## Getting started with GitHub Copilot CLI
+
+Copilot CLI is a validated co-primary runtime for the repository's read-only
+agent-design and audit workflows. The initial Copilot profile cannot edit files,
+execute commands, or delegate work.
+
+### 1. Install and authenticate
+
+Follow the [official installation
+guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli).
+For example, on macOS or Linux with Homebrew:
+
+```bash
+brew install --cask copilot-cli
+```
+
+An active Copilot subscription is required. Launch `copilot`, then run `/login`
+and follow the prompts if authentication is requested. See the [official
+authentication guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)
+for other supported methods.
+
+### 2. Start this project
+
+From the repository root, launch Copilot CLI and select the custom agent:
+
+```bash
+copilot
+```
+
+```text
+/agent agent-team-designer
+```
+
+For non-interactive use:
+
+```bash
+copilot --agent=agent-team-designer --prompt "Audit the existing agent definitions."
+```
+
+### 3. Inspect discovery
+
+Use `/instructions`, `/skills`, and `/env` in an interactive session. On CLI
+versions that expose the corresponding commands non-interactively, use:
+
+```bash
+copilot plugins list --kind skill --kind instruction
+copilot skill list
+```
+
+The five Copilot skill manifests under `.github/skills/` are discovery adapters.
+Their canonical content remains under `.opencode/skills/` so the two runtimes do
+not maintain independently edited copies.
+
+### Keeping runtimes synchronized
+
+Existing instructions, the OpenCode agent, and OpenCode skills remain canonical
+and are not rewritten for Copilot. Copilot CLI reads `AGENTS.md` directly. The
+files under `.github/` adapt the existing OpenCode agent and selected skills to
+Copilot's different schema and discovery paths.
+
+`AGENTS.md` instructs maintainers using either runtime to check for drift before
+changing an adapted source. Skill changes still land in the canonical
+`.opencode/skills/` file. Copilot can review or propose those changes, but an
+editing-capable workflow must apply them there and then regenerate the
+corresponding Copilot discovery adapter. The thin adapters are never
+reverse-synchronized into the canonical skill.
+
+After changing any canonical skill used by Copilot, regenerate the discovery
+adapters:
+
+```bash
+python3 scripts/sync_copilot_adapters.py
+```
+
+When `.opencode/agents/agent-team-designer.md` changes, review and adapt the
+Copilot profile, then record the reviewed source version:
+
+```bash
+python3 scripts/sync_copilot_adapters.py --accept-agent-source
+```
+
+Before committing, run the non-writing check:
+
+```bash
+python3 scripts/sync_copilot_adapters.py --check
+```
+
+The `Copilot adapters` GitHub Actions workflow runs the same check for pull
+requests. It fails when generated skill adapters are stale, the OpenCode agent
+changes without review of its Copilot translation, or the Copilot profile no
+longer uses its read-only schema and tool set.
+
+## Runtime ownership
+
+| Runtime | Configuration |
+|---|---|
+| Shared repository behavior | `AGENTS.md` |
+| GitHub Copilot CLI | `.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/` |
+| OpenCode | `opencode.json`, `.opencode/agents/`, `.opencode/skills/` |
+
+Copilot's tools and approval controls do not reproduce OpenCode's permission
+patterns, model prefixes, step budgets, or delegation settings. OpenCode remains
+fully supported during the migration.
 
 ## Getting started with OpenCode
 
@@ -92,7 +197,7 @@ For an overview of the project workflow and safety gates, read
 |---|---|
 | Name | `agent-team-designer` |
 | Mode | `primary` and project default |
-| Model | `github-copilot/gpt-5.6-luna` |
+| Model | `github-copilot/gpt-5.6-sol` |
 | Temperature | `0.3` |
 | Step budget | `40` |
 | Colour | `#ec4899` |
@@ -416,9 +521,21 @@ looping or silently widening permissions.
 
 ```text
 agent-team-designer/
+├── .github/
+│   ├── agents/
+│   │   └── agent-team-designer.agent.md
+│   ├── skills/
+│   │   ├── agent-audit/
+│   │   ├── agent-org-design/
+│   │   ├── model-selection/
+│   │   ├── prompt-patterns/
+│   │   └── skill-security-audit/
+│   └── copilot-instructions.md
 ├── AGENTS.md
 ├── README.md
 ├── opencode.json
+├── scripts/
+│   └── sync_copilot_adapters.py
 └── .opencode/
     ├── agents/
     │   └── agent-team-designer.md
