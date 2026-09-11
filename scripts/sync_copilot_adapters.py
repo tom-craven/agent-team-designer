@@ -51,8 +51,18 @@ def adapter_for(name: str) -> str:
     runtime_note = ""
     if name == "model-selection":
         runtime_note = (
-            " For Copilot CLI, model identifiers are bare values such as "
-            "`gpt-5.6-terra`, not OpenCode's `github-copilot/<model-id>` form."
+            "\n\nFor Copilot CLI, use this required output format instead of the "
+            "canonical OpenCode-prefixed template:\n\n"
+            "```\n"
+            "Recommended: <model-id>\n"
+            "Availability: confirmed via <config file | Copilot supported-models docs>\n"
+            "Reason: <axis it wins + why it fits this role>\n"
+            'Cost: <premium request multiplier, or "included">\n'
+            "Cheaper alternative: <model-id>\n"
+            "Premium alternative: <model-id>\n"
+            "Checked: <YYYY-MM-DD>\n"
+            "Note: Copilot's catalogue changes; re-verify before locking this in.\n"
+            "```"
         )
 
     return (
@@ -239,13 +249,13 @@ def validate() -> list[str]:
             errors.append(str(error))
             copilot = {}
         errors.extend(validate_agent_metadata(copilot))
-        if len(copilot_text) >= 30_000:
+        if len(copilot_text) > 30_000:
             errors.append("Copilot agent profile exceeds the 30,000-character limit")
 
     return errors
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--check",
@@ -257,7 +267,13 @@ def main() -> int:
         action="store_true",
         help="record that the Copilot translation was reviewed against the current OpenCode agent",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.check and args.accept_agent_source:
+        print(
+            "error: --check cannot be combined with --accept-agent-source",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         if args.accept_agent_source:

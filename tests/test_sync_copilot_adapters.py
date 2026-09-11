@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +24,14 @@ Prompt.
 
 
 class SyncCopilotAdaptersTest(unittest.TestCase):
+    def test_model_selection_adapter_uses_bare_model_output_template(self) -> None:
+        adapter = sync.adapter_for("model-selection")
+
+        self.assertIn("Recommended: <model-id>", adapter)
+        self.assertIn("Cheaper alternative: <model-id>", adapter)
+        self.assertIn("Premium alternative: <model-id>", adapter)
+        self.assertNotIn("Recommended: github-copilot/<model-id>", adapter)
+
     def test_digest_is_independent_of_line_endings(self) -> None:
         lf = b"first\nsecond\n"
         crlf = b"first\r\nsecond\r\n"
@@ -121,6 +130,49 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
         self.assertTrue(
             any("--accept-agent-source" in error for error in errors)
         )
+
+    def test_exact_30k_copilot_profile_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in sync.CANONICAL_SKILLS:
+                skill = root / ".opencode" / "skills" / name / "SKILL.md"
+                skill.parent.mkdir(parents=True, exist_ok=True)
+                skill.write_text(
+                    f"---\nname: {name}\ndescription: Test {name}.\n---\n"
+                )
+
+            source_agent = root / sync.SOURCE_AGENT
+            source_agent.parent.mkdir(parents=True, exist_ok=True)
+            source_agent.write_text("canonical agent\n")
+
+            marker = (
+                "<!-- Canonical OpenCode agent SHA-256: "
+                f"{sync.normalized_digest(source_agent.read_bytes())} -->"
+            )
+            copilot_agent = root / sync.COPILOT_AGENT
+            copilot_agent.parent.mkdir(parents=True, exist_ok=True)
+            prefix = VALID_FRONTMATTER.replace("\nPrompt.\n", f"\n{marker}\n\n")
+            prompt = "x" * (30_000 - len(prefix))
+            copilot_agent.write_text(f"{prefix}{prompt}")
+
+            with patch.object(sync, "ROOT", root):
+                sync.generate_adapters()
+                errors = sync.validate()
+
+        self.assertEqual(30_000, len(f"{prefix}{prompt}"))
+        self.assertFalse(
+            any("30,000-character limit" in error for error in errors), errors
+        )
+
+    def test_check_cannot_be_combined_with_accept_agent_source(self) -> None:
+        with patch.object(sync, "accept_agent_source") as accept:
+            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                status = sync.main(["--check", "--accept-agent-source"])
+                error = stderr.getvalue()
+
+        self.assertEqual(1, status)
+        self.assertIn("--check cannot be combined", error)
+        accept.assert_not_called()
 
     def test_generation_does_not_follow_adapter_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

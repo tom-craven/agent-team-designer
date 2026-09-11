@@ -74,10 +74,11 @@ files under `.github/` adapt the existing OpenCode agent and selected skills to
 Copilot's different schema and discovery paths.
 
 `AGENTS.md` instructs maintainers using either runtime to check for drift before
-changing an adapted source. Copilot and OpenCode both make skill changes in the
-canonical `.opencode/skills/` file, then regenerate the corresponding Copilot
-discovery adapter. The thin adapters are never reverse-synchronized into the
-canonical skill.
+changing an adapted source. Skill changes still land in the canonical
+`.opencode/skills/` file. Copilot can review or propose those changes, but an
+editing-capable workflow must apply them there and then regenerate the
+corresponding Copilot discovery adapter. The thin adapters are never
+reverse-synchronized into the canonical skill.
 
 After changing any canonical skill used by Copilot, regenerate the discovery
 adapters:
@@ -196,7 +197,7 @@ For an overview of the project workflow and safety gates, read
 |---|---|
 | Name | `agent-team-designer` |
 | Mode | `primary` and project default |
-| Model | `github-copilot/gpt-5.6-luna` |
+| Model | `github-copilot/gpt-5.6-sol` |
 | Temperature | `0.3` |
 | Step budget | `40` |
 | Colour | `#ec4899` |
