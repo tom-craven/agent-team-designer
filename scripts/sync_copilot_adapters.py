@@ -37,7 +37,7 @@ def scalar(frontmatter_text: str, key: str) -> str:
     match = re.search(rf"^{re.escape(key)}:\s*(.+)$", frontmatter_text, re.MULTILINE)
     if not match:
         raise ValueError(f"missing {key!r} in skill frontmatter")
-    return match.group(1).strip().strip('"\'')
+    return parse_string_scalar(match.group(1), key)
 
 
 def adapter_for(name: str) -> str:
@@ -89,8 +89,26 @@ def source_agent_digest() -> str:
     return normalized_digest((ROOT / SOURCE_AGENT).read_bytes())
 
 
+def symlink_in_path(relative_path: Path) -> Path | None:
+    current = ROOT
+    for part in relative_path.parts:
+        current /= part
+        if current.is_symlink():
+            return current.relative_to(ROOT)
+    return None
+
+
+def require_safe_output_path(relative_path: Path) -> None:
+    symlink = symlink_in_path(relative_path)
+    if symlink is not None:
+        raise ValueError(f"Copilot adapter path contains a symbolic link: {symlink}")
+
+
 def generate_adapters() -> None:
-    for relative_path, content in expected_adapters().items():
+    adapters = expected_adapters()
+    for relative_path in adapters:
+        require_safe_output_path(relative_path)
+    for relative_path, content in adapters.items():
         path = ROOT / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
@@ -98,6 +116,7 @@ def generate_adapters() -> None:
 
 
 def accept_agent_source() -> None:
+    require_safe_output_path(COPILOT_AGENT)
     path = ROOT / COPILOT_AGENT
     text = path.read_text()
     replacement = f"<!-- Canonical OpenCode agent SHA-256: {source_agent_digest()} -->"
@@ -136,16 +155,28 @@ def parse_agent_frontmatter(text: str) -> dict[str, object]:
 
 def parse_string_scalar(value: str, key: str) -> str:
     value = value.strip()
-    if value.startswith('"') and value.endswith('"'):
-        parsed = json.loads(value)
+    if value.startswith('"'):
+        if not value.endswith('"'):
+            raise ValueError(f"Copilot frontmatter {key} must be a string")
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                f"Copilot frontmatter {key} must be a string"
+            ) from error
         if isinstance(parsed, str):
             return parsed
-    elif value.startswith("'") and value.endswith("'"):
+    elif value.startswith("'"):
+        valid_content = re.fullmatch(r"(?:[^']|'')*", value[1:-1])
+        if not value.endswith("'") or not valid_content:
+            raise ValueError(f"Copilot frontmatter {key} must be a string")
         return value[1:-1].replace("''", "'")
     elif not re.fullmatch(
         r"(?i:null|~|true|false|yes|no|on|off|[-+]?(?:\d+(?:\.\d*)?|\.\d+))",
         value,
-    ) and not value.startswith(("[", "{", "|", ">", "&", "*", "!")):
+    ) and not value.startswith(
+        ("[", "{", "|", ">", "&", "*", "!", "#", "@", "`", "'", '"')
+    ) and not re.search(r":\s|\s#", value):
         return value
     raise ValueError(f"Copilot frontmatter {key} must be a string")
 
@@ -169,8 +200,20 @@ def validate_agent_metadata(copilot: dict[str, object]) -> list[str]:
 
 def validate() -> list[str]:
     errors: list[str] = []
+    adapters = expected_adapters()
+    unsafe_paths: set[Path] = set()
 
-    for relative_path, expected in expected_adapters().items():
+    for relative_path in (*adapters.keys(), COPILOT_AGENT):
+        symlink = symlink_in_path(relative_path)
+        if symlink is not None:
+            errors.append(
+                f"Copilot adapter path contains a symbolic link: {symlink}"
+            )
+            unsafe_paths.add(relative_path)
+
+    for relative_path, expected in adapters.items():
+        if relative_path in unsafe_paths:
+            continue
         path = ROOT / relative_path
         if not path.exists():
             errors.append(f"missing generated adapter: {relative_path}")
@@ -180,27 +223,24 @@ def validate() -> list[str]:
                 "python3 scripts/sync_copilot_adapters.py"
             )
 
-    copilot_path = ROOT / COPILOT_AGENT
-    copilot_text = copilot_path.read_text()
-    marker = SOURCE_MARKER.search(copilot_text)
-    if not marker or marker.group(1) != source_agent_digest():
-        errors.append(
-            f"{SOURCE_AGENT} changed; adapt {COPILOT_AGENT}, then run "
-            "python3 scripts/sync_copilot_adapters.py --accept-agent-source"
-        )
+    if COPILOT_AGENT not in unsafe_paths:
+        copilot_path = ROOT / COPILOT_AGENT
+        copilot_text = copilot_path.read_text()
+        marker = SOURCE_MARKER.search(copilot_text)
+        if not marker or marker.group(1) != source_agent_digest():
+            errors.append(
+                f"{SOURCE_AGENT} changed; adapt {COPILOT_AGENT}, then run "
+                "python3 scripts/sync_copilot_adapters.py --accept-agent-source"
+            )
 
-    try:
-        copilot = parse_agent_frontmatter(copilot_text)
-    except ValueError as error:
-        errors.append(str(error))
-        copilot = {}
-    errors.extend(validate_agent_metadata(copilot))
-    if len(copilot_text) >= 30_000:
-        errors.append("Copilot agent profile exceeds the 30,000-character limit")
-
-    for relative_path in (*expected_adapters().keys(), COPILOT_AGENT):
-        if (ROOT / relative_path).is_symlink():
-            errors.append(f"Copilot adapter must not be a symbolic link: {relative_path}")
+        try:
+            copilot = parse_agent_frontmatter(copilot_text)
+        except ValueError as error:
+            errors.append(str(error))
+            copilot = {}
+        errors.extend(validate_agent_metadata(copilot))
+        if len(copilot_text) >= 30_000:
+            errors.append("Copilot agent profile exceeds the 30,000-character limit")
 
     return errors
 

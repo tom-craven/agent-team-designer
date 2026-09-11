@@ -58,6 +58,21 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "must be a string"):
                     sync.parse_agent_frontmatter(invalid)
 
+    def test_yaml_single_quoted_scalar_is_decoded(self) -> None:
+        self.assertEqual(
+            "Owner's helper.",
+            sync.scalar("description: 'Owner''s helper.'", "description"),
+        )
+
+    def test_ambiguous_yaml_plain_scalar_fails(self) -> None:
+        invalid = VALID_FRONTMATTER.replace(
+            "description: Designs and audits agents.",
+            "description: invalid: nested",
+        )
+
+        with self.assertRaisesRegex(ValueError, "must be a string"):
+            sync.parse_agent_frontmatter(invalid)
+
     def test_duplicate_and_unsupported_frontmatter_fail(self) -> None:
         duplicate = VALID_FRONTMATTER.replace(
             "description: Designs and audits agents.\n",
@@ -106,6 +121,50 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
         self.assertTrue(
             any("--accept-agent-source" in error for error in errors)
         )
+
+    def test_generation_does_not_follow_adapter_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in sync.CANONICAL_SKILLS:
+                skill = root / ".opencode" / "skills" / name / "SKILL.md"
+                skill.parent.mkdir(parents=True, exist_ok=True)
+                skill.write_text(
+                    f"---\nname: {name}\ndescription: Test {name}.\n---\n"
+                )
+
+            target = root / "target.md"
+            target.write_text("do not overwrite\n")
+            adapter = root / ".github" / "skills" / "agent-audit" / "SKILL.md"
+            adapter.parent.mkdir(parents=True, exist_ok=True)
+            adapter.symlink_to(target)
+
+            with patch.object(sync, "ROOT", root):
+                with self.assertRaisesRegex(ValueError, "symbolic link"):
+                    sync.generate_adapters()
+
+            self.assertEqual("do not overwrite\n", target.read_text())
+
+    def test_generation_rejects_symlinked_adapter_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in sync.CANONICAL_SKILLS:
+                skill = root / ".opencode" / "skills" / name / "SKILL.md"
+                skill.parent.mkdir(parents=True, exist_ok=True)
+                skill.write_text(
+                    f"---\nname: {name}\ndescription: Test {name}.\n---\n"
+                )
+
+            target = root / "target"
+            target.mkdir()
+            github = root / ".github"
+            github.mkdir()
+            (github / "skills").symlink_to(target, target_is_directory=True)
+
+            with patch.object(sync, "ROOT", root):
+                with self.assertRaisesRegex(ValueError, "symbolic link"):
+                    sync.generate_adapters()
+
+            self.assertEqual([], list(target.iterdir()))
 
 
 if __name__ == "__main__":
