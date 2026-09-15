@@ -20,6 +20,7 @@ SOURCE_MARKER = re.compile(
 CANONICAL_SKILLS = (
     "agent-audit",
     "agent-org-design",
+    "agent-team-creation",
     "model-selection",
     "prompt-patterns",
     "skill-security-audit",
@@ -42,7 +43,9 @@ def scalar(frontmatter_text: str, key: str) -> str:
 
 def adapter_for(name: str) -> str:
     canonical = Path(".opencode/skills") / name / "SKILL.md"
-    source_frontmatter = frontmatter((ROOT / canonical).read_text(), canonical)
+    source_frontmatter = frontmatter(
+        (ROOT / canonical).read_text(encoding="utf-8"), canonical
+    )
     source_name = scalar(source_frontmatter, "name")
     description = scalar(source_frontmatter, "description")
     if source_name != name:
@@ -121,18 +124,20 @@ def generate_adapters() -> None:
     for relative_path, content in adapters.items():
         path = ROOT / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
+        path.write_text(content, encoding="utf-8")
         print(f"generated {relative_path}")
 
 
 def accept_agent_source() -> None:
     require_safe_output_path(COPILOT_AGENT)
     path = ROOT / COPILOT_AGENT
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     replacement = f"<!-- Canonical OpenCode agent SHA-256: {source_agent_digest()} -->"
     if not SOURCE_MARKER.search(text):
         raise ValueError(f"{COPILOT_AGENT} has no canonical source marker")
-    path.write_text(SOURCE_MARKER.sub(replacement, text, count=1))
+    path.write_text(
+        SOURCE_MARKER.sub(replacement, text, count=1), encoding="utf-8"
+    )
     print(f"accepted {SOURCE_AGENT} for {COPILOT_AGENT}")
 
 
@@ -227,7 +232,7 @@ def validate() -> list[str]:
         path = ROOT / relative_path
         if not path.exists():
             errors.append(f"missing generated adapter: {relative_path}")
-        elif path.read_text() != expected:
+        elif path.read_text(encoding="utf-8") != expected:
             errors.append(
                 f"stale generated adapter: {relative_path}; run "
                 "python3 scripts/sync_copilot_adapters.py"
@@ -235,7 +240,7 @@ def validate() -> list[str]:
 
     if COPILOT_AGENT not in unsafe_paths:
         copilot_path = ROOT / COPILOT_AGENT
-        copilot_text = copilot_path.read_text()
+        copilot_text = copilot_path.read_text(encoding="utf-8")
         marker = SOURCE_MARKER.search(copilot_text)
         if not marker or marker.group(1) != source_agent_digest():
             errors.append(
