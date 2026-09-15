@@ -18,7 +18,7 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 | `agent-org-design` | Multi-agent team structures |
 | `find-skills-sh` | Discover skills from skills.sh |
 | `skill-security-audit` | Security-scan skills before adoption |
-| `opencode-agent-config` | Define and audit OpenCode agent configuration in `opencode.json` |
+| `opencode-agent-config` | Configure shared OpenCode settings and validate Markdown agents |
 | `agent-team-creation` | Coordinate project analysis through organisation design, agent and skill creation, audits, OpenCode configuration, and validation |
 
 ## Working rules
@@ -27,21 +27,42 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 - Prefer existing skills from skills.sh when possible
 - Security-audit third-party skills before recommending install
 - Least-privilege permissions
+- Treat `gradle.properties` as secret-bearing in every generated team: deny
+  `gradle.properties` and `**/gradle.properties` through `read`, block direct
+  shell reads, deny content-search tools that cannot enforce path exclusions,
+  block indirect Git diff/history disclosure, and never grant
+  unrestricted Gradle execution. Allow only named build and verification tasks,
+  with publish, release, push, and property-reporting operations denied. Deny
+  edits to the same paths as defense in depth.
 - One clear job per agent
 - Use `skill-creator` when a capability gap appears
 - Use `agent-team-creation` for end-to-end creation or restructuring of a runnable team
 - When the user requests `software-knowledge` on a new team, grant the
-  orchestrator / primary write access to `knowledge/**` (and the skill compile
-  / lint scripts) even if that agent otherwise has `edit: deny`. Do not put
+  orchestrator / primary and every agent assigned that skill edit access to
+  `knowledge/**` (including deletion of proven stale, duplicate, or disposable
+  superseded artefacts), plus the skill compile / lint scripts, even if that
+  agent otherwise has `edit: deny`. Do not put
   `"*": deny` on `edit` in the same object — it wins over `knowledge/**`
   allow and blocks Write/StrReplace. Deny named application paths instead.
   Do not install the skill without a working `knowledge/` write permission.
+  Require reference checks before deletion, preserve historical decisions via
+  deprecation and `superseded_by` unless they are proven duplicates, compile and
+  lint after deletion, and report every deleted path and rationale. Do not grant
+  shell deletion commands merely to provide this capability.
 - Follow the gated lifecycle: analyse target project → design organisation →
   design each agent → resolve and audit skills → audit the complete team →
   create OpenCode configuration → validate runtime behaviour
 - Do not advance past unresolved critical findings at any lifecycle gate
-- When creating a multi-agent team, also create or update the team's OpenCode configuration (`opencode.json` or `opencode.jsonc`) so the agents, modes, models, prompts, permissions, and delegation settings are runnable—not just documented in Markdown.
+- Define every created agent exactly once under `.opencode/agents/<agent-name>.md`.
+  The Markdown frontmatter and body are the complete runtime definition. Never
+  mirror or split agent configuration under `opencode.json` or `opencode.jsonc`.
+- Create or update `opencode.json` or `opencode.jsonc` only for shared OpenCode
+  settings such as instructions, skill paths, providers, MCP servers, and
+  repository-wide defaults.
 - Before changing or creating OpenCode configuration, use the `opencode-agent-config` skill and verify the configuration against the generated agent definitions.
+- Fail validation if any agent name exists both under `.opencode/agents/` and a
+  JSON/JSONC top-level `agent` object. Migrate all unique fields to Markdown and
+  remove the JSON entry; do not rely on precedence or merge behaviour.
 
 ## OpenCode team creation context
 

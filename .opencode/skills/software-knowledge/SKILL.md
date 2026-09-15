@@ -142,6 +142,23 @@ The linter also compares the documented edge table with the compiler's `EDGE_KEY
 | Type removed | `status: deprecated` plus `superseded_by`; do not delete history |
 | Unsure of a constraint | `status: evolving` and an open question — never a confident guess |
 
+### Remove stale, duplicate, or superseded artefacts
+
+An agent assigned this skill must have scoped edit access to `knowledge/**`,
+including file deletion, without receiving shell deletion commands merely for
+this workflow. Delete only when repository evidence proves that an artefact is
+stale, an exact duplicate, or superseded with no historical value.
+
+1. Identify the canonical replacement or document why no replacement is needed.
+2. Search IDs, inbound references, and typed edges before deletion.
+3. Redirect or remove affected edges while preserving still-valid intent.
+4. Keep historical decisions as `status: deprecated` with `superseded_by`;
+   supersession alone is not grounds for deletion. Delete one only when it is a
+   proven duplicate.
+5. Delete only within `knowledge/**` through scoped file-edit tooling.
+6. Compile and lint the graph, then report each deleted path, its evidence, and
+   all replacement or edge changes.
+
 ## ID and edge rules
 
 - IDs are lowercase dotted names with a kind prefix — `type:billing.chargeservice`, `decision:0014`, `invariant:money-is-integer-minor-units`.

@@ -71,19 +71,34 @@ For every approved role:
 3. Derive required capabilities from the role rather than assigning a generic
    skill bundle.
 4. Select mode, finite step budget, and least-privilege permissions.
+   For Gradle repositories, treat `gradle.properties` as secret-bearing. Add
+   explicit `read` denials for `gradle.properties` and
+   `**/gradle.properties`, deny edits, deny content-search tools that cannot
+   exclude those paths, deny direct or Git-mediated shell reads, and allow only
+   named Gradle build or verification tasks. Never grant
+   unrestricted Gradle execution or property-reporting tasks; place an explicit
+   `properties`-task denial after task allows.
    When the user requested `software-knowledge` for the team, the orchestrator
-   / primary must receive `edit` allow on `knowledge/**` even if it otherwise
-   cannot edit the repository. Do **not** pair that allow with
+   / primary and every agent assigned that skill must receive `edit` allow on
+   `knowledge/**`, including scoped file deletion, even if they otherwise cannot
+   edit the repository. Do **not** pair that allow with
    `"*": deny` on `edit` — a catch-all edit deny wins and blocks writes to
-   `knowledge/`. Deny named application paths instead. Also allow the skill
-   compile and lint scripts that write `knowledge/index.yaml` and
-   `knowledge/graph.yaml`. Do not leave the orchestrator unable to create the
-   knowledge graph. Colocated `<Stem>.context.md` files beside source remain
-   an implementer permission.
+   `knowledge/`. Deny named application paths instead. Also allow every agent
+   assigned the skill to run its compile and lint scripts that write
+   `knowledge/index.yaml` and `knowledge/graph.yaml`. Require agents to delete
+   only proven stale, duplicate, or
+   disposable superseded artefacts; check references first; preserve historical
+   decisions through deprecation and `superseded_by` unless proven duplicate;
+   compile and lint after deletion; and report every deleted path and rationale.
+   Do not grant shell deletion commands for this purpose. Colocated
+   `<Stem>.context.md` files beside source remain an implementer permission.
 5. Define allowed delegation targets and doom-loop escalation behaviour.
 
 Agent files must be named `<agent-name>.md` in kebab-case under
-`<confirmed-path>/.opencode/agents/` when Markdown agents are requested.
+`<confirmed-path>/.opencode/agents/`. Markdown is the mandatory single source of
+truth for created agents. Put the complete runtime definition in frontmatter and
+the system prompt in the body. Never create or retain a same-name agent under
+`opencode.json` or `opencode.jsonc`.
 
 ### 4. Resolve skill requirements
 
@@ -102,10 +117,11 @@ Resolve each required capability in this order:
 Record every capability as `satisfied`, `new skill required`, `optional`, or
 `unresolved`. Do not silently omit unresolved essential capabilities.
 
-When `software-knowledge` is in the approved skill set, treat orchestrator
-write access to `knowledge/**` as an essential permission, not an optional
-broadening. An orchestrator with `edit: deny`, or with `"*": deny` in the
-same `edit` object as `knowledge/**`, is a skill-gate failure.
+When `software-knowledge` is in the approved skill set, treat scoped edit and
+deletion access to `knowledge/**` for the orchestrator and every agent assigned
+the skill as essential, not optional broadening. An affected agent with
+`edit: deny`, or with `"*": deny` in the same `edit` object as
+`knowledge/**`, is a skill-gate failure.
 
 ### 5. Audit the complete design
 
@@ -120,8 +136,13 @@ same `edit` object as `knowledge/**`, is a skill-gate failure.
   `opencode.jsonc`.
 - Preserve compatible existing settings and applicable local and global
   instruction and skill sources.
-- Configure the approved agents, prompts, modes, models, steps, permissions,
-  delegation, and recovery behaviour.
+- Keep approved agents, prompts, modes, models, steps, permissions, delegation,
+  and recovery behaviour exclusively in `.opencode/agents/*.md`.
+- Use `opencode.json` or `opencode.jsonc` only for shared settings such as
+  instructions, skill paths, providers, MCP servers, and repository-wide
+  defaults. Do not add a top-level `agent` object for created agents.
+- When migrating an existing JSON agent, transfer every unique field to the
+  Markdown file and remove the JSON entry in the same change.
 - Never broaden permissions merely to make validation pass.
 
 ### 7. Validate the runnable team
@@ -129,6 +150,9 @@ same `edit` object as `knowledge/**`, is a skill-gate failure.
 - Validate JSON or JSONC syntax and the current OpenCode schema.
 - Confirm every configured agent, prompt, instruction, skill path, and
   delegation target resolves.
+- Compare `.opencode/agents/*.md` names with keys under any existing JSON
+  `agent` object. Zero duplicates are allowed; a duplicate fails the runtime
+  gate. Created teams should have no agent definitions in JSON at all.
 - Compare runtime configuration against the approved agent definitions.
 - Exercise representative routing, delegation, denial, completion, and
   doom-loop recovery cases where the environment permits.
@@ -156,6 +180,8 @@ Do not advance when a gate fails:
 - Recommend or install an unaudited third-party skill.
 - Treat agent Markdown as a runnable team without configuring and validating
   OpenCode when installation was requested.
+- Define or mirror an agent under `opencode.json` or `opencode.jsonc`; created
+  agents live only in `.opencode/agents/*.md`.
 - Replace repository guidance with generated instructions.
 - Claim completion without naming created or modified files and verification.
 

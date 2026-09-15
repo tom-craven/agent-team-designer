@@ -31,6 +31,10 @@ Systematically review agents and produce actionable findings.
 10. **Delegation validity** — targets exist, are allowed, and have hand-off contracts?
 11. **Step budget** — finite, proportionate, and sufficient for verification?
 12. **Recovery** — bounded retries, blocker handling, doom-loop escalation, and final statuses?
+13. **Secret-bearing build configuration** — in Gradle repositories, do all
+    agents deny reads of `gradle.properties` and nested copies, block shell
+    and Git diff/history disclosure, deny unsafe content-search tools, deny
+    edits, and avoid unrestricted or property-reporting Gradle commands?
 
 ## Team-level gate
 
@@ -42,14 +46,16 @@ After reviewing agents individually, verify the assembled team:
 - contains no undeclared or circular delegation;
 - does not rely on unavailable models, missing paths, or unaudited third-party skills;
 - can produce a useful handoff when permissions, dependencies, or steps block work;
-- if `software-knowledge` is installed, the orchestrator / primary can write
-  `knowledge/**` and run the skill compile/lint scripts, with no
-  `"*": deny` on the same `edit` object.
+- if `software-knowledge` is installed, the orchestrator / primary and every
+  agent assigned that skill can edit and delete within `knowledge/**`, with no
+  `"*": deny` on the same `edit` object; each can run compile/lint scripts;
+  prompts limit deletion to proven stale, duplicate,
+  or disposable superseded artefacts, require reference checks, preserve
+  historical decisions unless proven duplicate, and require deletion reports.
 
 Treat unresolved unavailable models, essential missing skills, dangerous
-permissions, invalid delegation, responsibility collisions, and an
-orchestrator that cannot write `knowledge/` while `software-knowledge` is
-required as critical.
+permissions, invalid delegation, responsibility collisions, and any agent that
+cannot maintain `knowledge/` while assigned `software-knowledge` as critical.
 
 ## Report format
 

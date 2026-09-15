@@ -31,9 +31,14 @@ User
 ```
 
 When the team includes `software-knowledge`, the orchestrator is still
-non-implementing for application code, but **must** be allowed to write
-`knowledge/**` and run the skill compile/lint scripts so it can create and
-maintain the knowledge graph. That exception is required, not optional.
+non-implementing for application code, but **must** be allowed to write and
+delete within `knowledge/**` and run the skill compile/lint scripts so it can
+create and maintain the knowledge graph. Every specialist assigned the skill
+must receive the same scoped `knowledge/**` edit capability, without gaining
+application-code or shell deletion access. That exception is required, not
+optional. Prompts must limit deletion to proven stale, duplicate, or disposable
+superseded artefacts; require reference checks; preserve historical decisions
+unless proven duplicate; and require compile/lint plus a deletion report.
 Do not express it as `"*": deny` plus `knowledge/**`: allow — the catch-all
 edit deny wins and blocks those writes. Deny `src/**`, `tests/**`, and
 other application trees instead.
@@ -53,6 +58,10 @@ other application trees instead.
    owner, and escalation path.
 8. Add independent gates for risks that should not report through implementers.
 9. Avoid too many chiefs.
+10. In Gradle repositories, make `gradle.properties` inaccessible to every
+    role and delegate build execution only through named safe-task allowlists;
+    no organisational role requires read, edit, shell, or Git-history access to
+    secret-bearing project properties.
 
 ## Required evidence
 

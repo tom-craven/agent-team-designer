@@ -5,7 +5,8 @@ description: Define, audit, and migrate OpenCode agents in opencode.json, includ
 
 # OpenCode Agent Configuration
 
-Use this skill for agent definitions stored in `opencode.json` or `opencode.jsonc`.
+Use this skill to configure shared OpenCode settings and validate Markdown agent
+runtime behaviour. This team creates agents only as `.opencode/agents/*.md`.
 The authoritative reference is https://opencode.ai/docs/agents. Re-check it when
 the configuration schema or documented options may have changed.
 
@@ -52,6 +53,25 @@ secrets or unrelated private directories.
 
 ## Configuration shape
 
+## Mandatory single source of truth
+
+For every team created or modified by `agent-team-designer`:
+
+- Define agents only in `.opencode/agents/<agent-name>.md`.
+- Put the complete description, mode, model, temperature, steps, color,
+  permissions, and prompt in the Markdown definition.
+- Do not add created agents to the top-level `agent` object in `opencode.json`
+  or `opencode.jsonc`.
+- Reserve JSON/JSONC for shared settings: instructions, skill paths, providers,
+  MCP servers, and repository-wide defaults.
+- Inventory both sources before changes. If the same name exists in Markdown and
+  JSON, treat it as a blocking duplicate. Migrate all unique JSON fields into
+  Markdown, then remove the JSON entry in the same change.
+- Do not rely on undocumented precedence or nested-object merge behaviour.
+
+The JSON agent shape below is reference material for auditing legacy
+configurations only; do not use it when creating a team.
+
 Agents are configured under the top-level `agent` object. The agent key becomes
 the agent name.
 
@@ -89,7 +109,7 @@ unfinished task complete.
 
 ## Design procedure
 
-1. Inspect the existing `opencode.json`/`opencode.jsonc`, nearby prompt files,
+1. Inspect the existing `opencode.json`/`opencode.jsonc`, `.opencode/agents/`, nearby prompt files,
    Markdown agents, project instructions, repository `.github` guidance, and
    configured global OpenCode/GitHub/Copilot sources before proposing changes.
 2. Decide whether the agent is `primary`, `subagent`, or `all`.
@@ -98,15 +118,20 @@ unfinished task complete.
    - `all`: usable in either role.
 3. Give it one responsibility and a specific, discoverable description.
 4. Select a model only after confirming provider availability and current evidence.
-5. Use a prompt file for substantial prompts; use an inline prompt only when it
-   is short and stable. The `{file:...}` path is relative to the config file.
+5. Keep the system prompt in the Markdown agent body. Do not split the same
+   agent's configuration between Markdown and JSON.
 6. Apply least-privilege permissions. Prefer explicit command patterns over
    unrestricted `bash: "allow"`. When `software-knowledge` is configured for
-   the team, the orchestrator / primary must have `edit` allow on
-   `knowledge/**` and bash allow for that skill's `compile_graph.py` and
-   `lint_knowledge.py` scripts. Do not keep a blanket `edit: deny` or
-   `"*": deny` on `edit` for that orchestrator — the catch-all deny wins
-   and blocks knowledge-graph writes.
+   the team, the orchestrator / primary and every agent assigned that skill must
+   have `edit` allow on `knowledge/**`, including deletion through scoped file
+   tools. Every agent assigned the skill must also have bash allow for that
+   skill's `compile_graph.py` and `lint_knowledge.py` scripts. Do not keep a
+   blanket `edit: deny` or `"*": deny` on `edit` for those agents — the
+   catch-all deny wins and blocks knowledge-graph writes. Do not allow shell
+   deletion commands solely for knowledge maintenance. Require prompts to limit
+   deletion to proven stale, duplicate, or disposable superseded artefacts,
+   check references, preserve historical decisions unless proven duplicate,
+   compile and lint after deletion, and report deleted paths and rationale.
 7. Set `steps` based on the workflow. For implementation, reserve steps for
    repository inspection, edits, tests, and final reporting.
 8. Validate that delegation targets named in `permission.task` actually exist.
@@ -130,8 +155,22 @@ rule wins**, so put the wildcard first.
 
 For `edit`, do **not** use `"*": deny` plus later path allows. A catch-all
 `edit` deny wins and blocks Write/StrReplace even when `knowledge/**` is
-listed as allow. Allow `knowledge/**` (and report paths) and deny named
-application trees instead.
+listed as allow. For every agent assigned `software-knowledge`, allow
+`knowledge/**` (and report paths) and deny named application trees instead.
+This scoped edit permission also supplies safe file deletion; do not broaden
+Bash with `rm`, `del`, or equivalent commands.
+
+For Gradle repositories, assume `gradle.properties` may contain credentials.
+Every agent and the repository-wide configuration must deny both
+`gradle.properties` and `**/gradle.properties` through the `read` gate and deny
+edits to the same paths. Deny direct shell disclosure (`cat`, `type`,
+`Get-Content`, `grep`, `rg`, and equivalents) and indirect disclosure through
+unrestricted Git diff, log, or show commands. Do not allow unrestricted
+content-search tools when they cannot enforce a path exclusion. Do not allow unrestricted
+`gradlew *`; allow only named build and verification tasks, and deny publish,
+release, push, and property-reporting operations after the allow rules so the
+last match wins. A Gradle process may internally consume project properties, so
+task allowlisting is required in addition to file-read denial.
 
 ```json
 "bash": {
@@ -291,6 +330,8 @@ treated as a handoff or partial result until the completion gates are checked.
 - Are local/global precedence and any conflicts documented?
 - Are all configured instruction and skill paths valid and appropriately scoped?
 - Does the configuration match the approved organisation and complete agent definitions?
+- Is every created agent defined exactly once under `.opencode/agents/`, with no
+  same-name JSON entry and no agent fields split across representations?
 - Did the design audit release the team for configuration with no unresolved critical findings?
 - Do representative routing, delegation, denial, completion, and doom-loop cases behave as designed?
 
@@ -298,8 +339,8 @@ treated as a handoff or partial result until the completion gates are checked.
 
 When designing or changing an agent, provide:
 
-1. the complete JSON fragment under `agent`;
-2. any prompt file contents or path changes;
+1. the complete Markdown agent files and frontmatter;
+2. any agent-body prompt changes;
 3. the complete `instructions` and `skills.paths` changes, with source
    precedence and included/omitted/missing paths;
 4. permission and step-limit rationale;
@@ -311,5 +352,6 @@ When designing or changing an agent, provide:
    denied operations, completion, and recovery, or an explicit list of checks
    that could not be performed.
 
-Never silently edit configuration. Never claim an agent is fixed without testing
+Never create or mirror agent definitions in JSON. Never silently edit
+configuration. Never claim an agent is fixed without testing
 the relevant permission, delegation, and completion paths.
