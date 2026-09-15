@@ -20,6 +20,9 @@ permission:
     "git status*": allow
     "mkdir *": allow
     "New-Item -ItemType Directory*": allow
+    "python3 scripts/sync_copilot_adapters.py": allow
+    "python3 scripts/sync_copilot_adapters.py --accept-agent-source": allow
+    "python3 scripts/sync_copilot_adapters.py --check": allow
     "python -m pytest .opencode/skills/software-knowledge/tests*": allow
     "python -m py_compile .opencode/skills/software-knowledge/scripts/*": allow
     "python .opencode/skills/software-knowledge/scripts/compile_graph.py *": allow
