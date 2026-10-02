@@ -123,6 +123,25 @@ the skill as essential, not optional broadening. An affected agent with
 `edit: deny`, or with `"*": deny` in the same `edit` object as
 `knowledge/**`, is a skill-gate failure.
 
+Knowledge capture must cover every node kind, not only decisions and
+invariants:
+
+- Generated `AGENTS.md` and agent prompts must say "harvest flows, patterns,
+  capabilities, decisions, and invariants per the `software-knowledge` harvest
+  workflow" — never "record decisions and invariants".
+- Name exactly one knowledge writer for central `knowledge/` nodes (the
+  orchestrator by default). Specialists list knowledge candidates in their
+  hand-off reports; the writer creates the nodes.
+- The orchestrator's completion criteria include a harvest table and a clean
+  `lint_knowledge.py --strict` run.
+- Any independent reviewer checks that the harvest ran.
+- Offer an optional `knowledge-curator` subagent when the team will produce
+  frequent decisions or the repository already has buried knowledge. Invoked
+  only by the orchestrator after acceptance; edit limited to `knowledge/**`;
+  shell limited to the skill's compile and lint scripts; no task delegation. It
+  reclassifies and links knowledge and never makes design decisions. Add it only
+  with user agreement.
+
 ### 5. Audit the complete design
 
 - Load `agent-audit` after all proposed agents and skills are visible together.

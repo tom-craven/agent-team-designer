@@ -63,6 +63,12 @@ def test_applies_to_is_compiled_and_not_reported_as_unknown() -> None:
         assert {edge["type"] for edge in graph["edges"]} == {"applies_to"}
 
 
+def test_every_edge_key_is_accepted_frontmatter() -> None:
+    from compile_graph import EDGE_KEYS, METADATA_KEYS
+
+    assert set(EDGE_KEYS) <= METADATA_KEYS
+
+
 def test_unknown_frontmatter_key_fails_lint() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

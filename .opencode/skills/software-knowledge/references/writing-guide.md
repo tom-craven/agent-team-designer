@@ -58,6 +58,21 @@ Write the choice that still constrains code. If the decision is fully absorbed a
 
 Required sections: Context, Decision, Consequences, Status.
 
+A decision records the choice and its consequences only. Move everything else
+out and link it:
+
+| Found inside a decision | Belongs in |
+|---|---|
+| Ordered steps, request path, build sequence | `flow` linked by `decided_by` |
+| "Same pattern as", "authored like every other", reusable shape | `pattern` linked by `decided_by` |
+| A shape rejected because it failed | `anti_pattern` |
+| The user outcome an operation delivers | `capability` with `realized_by` |
+| "Open item", "open question", "left open" | its own `decision` at `status: evolving` |
+| "Amended", "no longer holds" | a new decision with `supersedes`; set `superseded_by` on the old one |
+| Verification runs, review history, session narrative | the PR, not knowledge |
+
+Keep a decision under ~60 lines. A longer decision usually hides another kind.
+
 ## Capability vs type vs flow
 
 - Capability — outcome for a user ("charge a customer")

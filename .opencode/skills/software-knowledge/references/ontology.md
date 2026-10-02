@@ -12,12 +12,14 @@ Typed nodes and edges. Every knowledge file is one node. Frontmatter is the grap
 | module | `module:` | `src/<pkg>/AGENTS.md` or `knowledge` | A deployable or package boundary |
 | type | `type:` | `<Stem>.context.md` beside source | Public type, or a type agents misuse |
 | contract | `contract:` | `knowledge/contracts/<name>.md` | API, event, or schema other teams consume |
-| flow | `flow:` | `knowledge/flows/<name>.md` | Cross-type request path with a consistency story |
+| flow | `flow:` | `knowledge/flows/<name>.md` | Any path where participants act in a defined order — types, services, API operations, gateways, or build stages — including "A is only ever called from B" |
 | decision | `decision:` | `knowledge/decisions/<nnnn>-<slug>.md` | A choice that still constrains code |
 | invariant | `invariant:` | `knowledge/invariants/<slug>.md` | A rule that must survive refactors |
 | pattern | `pattern:` | `knowledge/patterns/<slug>.md` | Recurring design we want repeated |
 | anti_pattern | `anti_pattern:` | `knowledge/patterns/<slug>.md` | Recurring design we want forbidden |
 | runbook | `runbook:` | `knowledge/runbooks/<slug>.md` | Failure and repair, not happy-path design |
+
+Contract-only and infrastructure repositories have few or no type nodes. Their flows, patterns, and capabilities are still required: flow participants are services, operations, gateways, and build stages; patterns are recurring spec or configuration shapes; capabilities map to the operations and contracts that deliver them.
 
 One file, one node. If a source file holds several public types, split context files (`Foo.Bar.context.md`) or extract the type.
 
@@ -95,6 +97,8 @@ Store as ID lists in frontmatter. Direction is from the current node to each lis
 | `superseded_by` | Evolution |
 
 `invariants` and `uses` are accepted frontmatter aliases for `guarded_by` and `used_in`. `consumers` is accepted as the readable inverse alias for `consumed_by`. The compiler emits the canonical edge type shown in the table.
+
+`supersedes` may be partial: the newer decision replaces part of the older one, and the older node stays `active` until nothing in it is load-bearing. Put `supersedes` on the newer node; set `superseded_by` on the older one only when it is fully replaced and `deprecated`.
 
 Do not encode the full import graph. Extractors can do that from source. Intent edges are the ones an agent would otherwise get wrong.
 

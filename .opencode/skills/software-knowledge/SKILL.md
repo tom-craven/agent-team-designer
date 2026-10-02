@@ -1,8 +1,8 @@
 ---
 name: software-knowledge
-description: Document software intent as a typed knowledge graph next to the code. Use when adding class context files, AGENTS.md maps, ADRs, bounded-context docs, architecture knowledge, compiling knowledge/graph.yaml, scaffolding knowledge/, or before editing a public type so invariants and decisions load first.
+description: Document software intent as a typed knowledge graph next to the code — capabilities, flows, patterns, decisions, invariants, contracts, and type context. Use when adding class context files, AGENTS.md maps, ADRs, bounded-context docs, architecture knowledge, compiling knowledge/graph.yaml, scaffolding knowledge/, before editing a public type so invariants and decisions load first, and after any accepted change to harvest flows, patterns, and capabilities that would otherwise be buried in decisions.
 metadata:
-  version: "1.1"
+  version: "1.2"
   type: workflow
 ---
 
@@ -10,7 +10,7 @@ metadata:
 
 Turn a codebase into a durable intent graph. Code is the source of truth for *what*. Knowledge nodes are the source of truth for *why*, *constraints*, and *relationships*.
 
-Read `references/ontology.md` before creating IDs or edges. Read `references/writing-guide.md` before drafting prose. Copy templates from `assets/`. Run scripts in `scripts/` instead of hand-writing catalogs.
+Classify the statement before anything else — see "Classify before you write". Read `references/ontology.md` before creating IDs or edges. Read `references/writing-guide.md` before drafting prose. Copy templates from `assets/`. Run scripts in `scripts/` instead of hand-writing catalogs.
 
 ## When this skill applies
 
@@ -19,6 +19,11 @@ Read `references/ontology.md` before creating IDs or edges. Read `references/wri
 - Answering "what may this depend on" or "why is it built this way"
 - An agent about to edit code and needing the right context loaded
 - Compiling or linting `knowledge/graph.yaml`
+- After any accepted change, decision, or review — run the harvest workflow
+- When `lint_knowledge.py` reports `coverage:` findings
+
+Recording only decisions and invariants is a capture failure. A repository with
+many decisions and no capabilities, flows, or patterns has buried them.
 
 Do not create a node for private helpers or for facts the compiler already knows (signatures, imports, field lists).
 
@@ -61,6 +66,61 @@ Load in this order. Stop when the task is grounded. Do not dump the whole tree i
 If those files are missing, create stubs (`status: evolving`) rather than inventing constraints.
 
 Full rules — `references/retrieval.md`.
+
+## Classify before you write
+
+Most capture failures are classification failures, not writing failures. Do this
+before opening any template.
+
+### 1. Decompose the statement
+
+A single sentence usually carries several claims. Split it before classifying.
+"ChargeService is only called from checkout, and I'm not sure if refunds go
+through it" is three claims, not one.
+
+Never assume one statement means one node.
+
+### 2. Map each claim to a kind
+
+| Signal in the statement | Kind |
+|---|---|
+| Ordering, sequence, "when X then Y", "A calls B", a request path, a build or deployment sequence | `flow` |
+| "must", "must never", "always", "only", a rule about all future code | `invariant` |
+| "we chose", "we went with", "because", "don't reopen", names an ADR | `decision` |
+| "same pattern as", "authored like every other", "we always shape X as", a reusable shape | `pattern` |
+| "never do X again", a shape that was tried and failed | `anti_pattern` |
+| "not sure", "undecided", "open question", "open item", "TBD" | keep the node it belongs to at `status: evolving`; if a real choice is pending, add a `decision` at `status: evolving` |
+| "amended", "no longer holds", "replaces" | a new `decision` with `supersedes` |
+| Ownership, team boundary, different domain language | `bounded_context` |
+| A job the system does for a user; a new or changed endpoint/operation | `capability` (create, or link the existing one) |
+| Consumed by another team or service | `contract` |
+| "when it breaks, do X" | `runbook` |
+| A public type, or one that is easy to misuse | `type` |
+
+### 3. Apply the tie-breakers
+
+- **A statement that names two or more participants and an order is a `flow`** —
+  even when it also states a rule. Describing a path and constraining it are
+  different jobs: create both, and link them.
+- **`invariant` is the most over-matched kind.** Before writing one, ask whether
+  the statement also describes a path, a decision, or an ownership boundary. If
+  it does, that is a separate node.
+- **Invariant nodes must not contain step lists.** If you are writing ordered
+  steps inside an invariant, the flow node is missing.
+- **`decision` vs `invariant`:** a decision could reasonably have gone the other
+  way; an invariant must hold regardless of which way it went.
+- **`decision` is the second most over-matched kind.** It is the easiest
+  container, so flows, patterns, open questions, and amendments end up inside
+  it. A decision records the choice and its consequences only; see the
+  decision-split table in `references/writing-guide.md`.
+- **Uncertainty is not a kind.** Do not withhold a node because part of the
+  statement is unresolved. Create the node and mark it `evolving`.
+
+### 4. Check back before you finish
+
+Restate each claim from the original statement and name the node ID that now
+carries it. Report any claim with no node. An unmapped claim is a capture
+failure, not a judgement call.
 
 ## Workflows
 
@@ -115,15 +175,63 @@ Adoption sequence — `references/adoption.md`.
 
 Same PR as the code change. Stale nodes are worse than missing nodes.
 
-### Add a decision, invariant, flow, or capability
+### Add a decision, invariant, flow, capability, pattern, or anti-pattern
 
 Copy the matching template in `assets/`. Give it a stable `id`. Point types at it; do not paste the same rule into every class file.
+
+### Harvest after an accepted change (required)
+
+Run this after every accepted change, before reporting completion. Classifying
+what the user said is not enough; also classify what agents wrote.
+
+1. List every artefact written or changed in the session, including new
+   decisions and changed specs, schemas, or public types.
+2. Re-run "Classify before you write" over each artefact's body, not only its
+   title.
+3. For each signal, create or update the node and link it:
+   - an ordered list of steps or a request/build path → `flow`
+   - "same pattern as", "like every other", a reusable shape → `pattern`
+   - a rejected shape with a concrete failure → `anti_pattern`
+   - a new or changed operation, endpoint, or public behaviour → `capability`
+     linked by `realized_by` to its contract, flow, or types
+   - open items → `decision` at `status: evolving`
+   - amendments → new `decision` with `supersedes`
+4. Slim the source decision to Context / Decision / Consequences / Status and
+   replace moved content with node IDs.
+5. **Verify against the source of truth.** Check every operational claim in a
+   new or changed node — operation IDs, paths, tags, scopes, status codes, step
+   order — against the code or spec, not against decisions. Decisions are
+   history; later decisions may have renamed or moved what an earlier one
+   describes. Name the source file in the node. Leave a claim you cannot verify
+   as an open question rather than stating it.
+6. **Propagate changed facts.** When a change renames, moves, or reverses
+   something (a tag, path, scope, reference form, rule), search existing nodes
+   for the old value and update or deprecate each one, including invariants and
+   contexts. Add `supersedes` from the changing decision to every earlier
+   decision it overrides, even if the earlier one does not mention it.
+7. Compile, then lint with `--strict`. Resolve every `coverage:` finding or
+   state why it is a false positive.
+8. Report a harvest table: claim → node ID → created / updated / linked.
+
+One agent owns the writing. Specialists flag candidates in their reports; the
+knowledge owner (orchestrator or a dedicated curator) writes the nodes, so the
+graph does not collect duplicates.
+
+### Backfill an existing graph
+
+When `coverage:` findings show buried knowledge, run the harvest workflow over
+existing decisions oldest first. Read decisions to find *what* to extract, then
+take operational detail from the current code or spec (harvest step 5). Create
+extracted nodes at `status: evolving` until a human confirms them. Do not
+delete or rewrite decision history; add links and `supersedes` edges. Check
+existing invariants and contexts for rules that later decisions reversed.
 
 ### Compile and lint
 
 ```bash
 python <this-skill>/scripts/compile_graph.py .
 python <this-skill>/scripts/lint_knowledge.py .
+python <this-skill>/scripts/lint_knowledge.py . --strict   # after harvest
 ```
 
 `compile_graph.py` walks `**/*.context.md` and `knowledge/**/*.md`, reads YAML frontmatter, and writes `knowledge/index.yaml` plus `knowledge/graph.yaml`. It specifically excludes `.opencode/skills/software-knowledge/assets/`, so bundled templates such as `type.context.md` are not product nodes; real context nodes elsewhere remain discoverable.
@@ -131,6 +239,8 @@ python <this-skill>/scripts/lint_knowledge.py .
 `lint_knowledge.py` fails on broken IDs, missing `source` paths, unknown frontmatter keys or edge keys, invalid edge value shapes, unknown edge targets, and template markers left in `status: active` nodes. When adding an ontology edge, update the edge table in `references/ontology.md`, `EDGE_KEYS` in `scripts/compile_graph.py`, and its accepted metadata keys together.
 
 The linter also compares the documented edge table with the compiler's `EDGE_KEYS` mapping. This prevents references from introducing a queryable edge such as `applies_to` without adding it to the ontology and compiler.
+
+The linter also reports `coverage:` findings — knowledge captured under the wrong kind: no capability/flow/pattern nodes despite five or more decisions; a decision or invariant holding a 4+ step numbered list or an `A → B → C` chain without a linked flow; pattern language without a linked pattern; labelled amendments without a `supersedes` edge in either direction; labelled open items without an evolving decision; contracts without a capability; a decision whose `## Status` section disagrees with its frontmatter status. They warn by default and fail under `--strict`. A `status` outside `evolving | active | deprecated` is always an error.
 
 ### Keep the graph true
 
@@ -141,6 +251,8 @@ The linter also compares the documented edge table with the compiler's `EDGE_KEY
 | Invariant changes | Update the invariant node; keep type files as pointers |
 | Type removed | `status: deprecated` plus `superseded_by`; do not delete history |
 | Unsure of a constraint | `status: evolving` and an open question — never a confident guess |
+| New or changed operation / endpoint | Create or link its `capability` |
+| Decision written | Run the harvest workflow before completion |
 
 ### Remove stale, duplicate, or superseded artefacts
 
