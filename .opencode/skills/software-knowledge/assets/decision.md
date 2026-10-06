@@ -2,7 +2,7 @@
 id: decision:0001
 kind: decision
 name: Short title
-status: accepted
+status: evolving
 applies_to: []
 supersedes: []
 updated: YYYY-MM-DD
@@ -20,4 +20,4 @@ The choice, in one paragraph.
 What became easier. What became harder. What agents must not undo.
 
 ## Status
-accepted | superseded | deprecated
+evolving | active | deprecated — must match the frontmatter `status`.

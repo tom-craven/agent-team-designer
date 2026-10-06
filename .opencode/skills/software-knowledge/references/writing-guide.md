@@ -63,7 +63,7 @@ out and link it:
 
 | Found inside a decision | Belongs in |
 |---|---|
-| Ordered steps, request path, build sequence | `flow` linked by `decided_by` |
+| Ordered steps, request path, build sequence, `A → B → C` | `flow` linked by `decided_by` |
 | "Same pattern as", "authored like every other", reusable shape | `pattern` linked by `decided_by` |
 | A shape rejected because it failed | `anti_pattern` |
 | The user outcome an operation delivers | `capability` with `realized_by` |
@@ -72,6 +72,8 @@ out and link it:
 | Verification runs, review history, session narrative | the PR, not knowledge |
 
 Keep a decision under ~60 lines. A longer decision usually hides another kind.
+Operational detail (operation IDs, paths, tags, scopes, status codes) comes
+from the current code or spec, never from an earlier decision.
 
 ## Capability vs type vs flow
 

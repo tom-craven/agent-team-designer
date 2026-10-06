@@ -2,7 +2,7 @@
 id: invariant:slug
 kind: invariant
 name: Short rule
-status: active
+status: evolving
 applies_to: []
 enforced_by: []
 updated: YYYY-MM-DD

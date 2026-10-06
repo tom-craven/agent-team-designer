@@ -37,12 +37,10 @@ EDGE_KEYS = {
     "enforced_by": "enforced_by",
 }
 
+# Derived from EDGE_KEYS so a new edge is accepted frontmatter automatically.
 METADATA_KEYS = {
-    "id", "kind", "name", "language", "status", "updated", "source", "bounded_context",
-    "owners", "tags", "owns", "implements", "depends_on", "must_not_depend_on",
-    "collaborates_with", "emits", "consumes", "guarded_by", "invariants",
-    "decided_by", "used_in", "uses", "realized_by", "applies_to",
-    "supersedes", "superseded_by", "emitted_by", "consumers", "enforced_by",
+    "id", "kind", "name", "language", "status", "updated", "source",
+    "bounded_context", "owners", "tags", *EDGE_KEYS.keys(),
 }
 
 SKIP_DIR_NAMES = {

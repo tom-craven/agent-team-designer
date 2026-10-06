@@ -16,6 +16,7 @@ What starts it.
 
 ## Steps
 Participants may be types, services, API operations, gateways, or build stages.
+Name the code, spec, or build file each step is verified against.
 
 1. Participant A does …
 2. Participant B does …

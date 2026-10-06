@@ -48,11 +48,6 @@ def write_text_if_absent(path: Path, text: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", nargs="?", default=".", help="repository root")
-    parser.add_argument(
-        "--force-index",
-        action="store_true",
-        help="overwrite empty generated catalogs",
-    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
