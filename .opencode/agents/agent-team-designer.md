@@ -8,14 +8,62 @@ color: "#ec4899"
 permission:
   read:
     "*": allow
+    "**/.env": deny
+    "**/.env.*": deny
+    "**/*.pem": deny
+    "**/*.key": deny
+    "**/*.p12": deny
+    "**/*.pfx": deny
+    "**/*.jks": deny
+    "**/*.keystore": deny
+    "**/id_rsa*": deny
+    "**/id_ed25519*": deny
+    "**/.npmrc": deny
+    "**/.pypirc": deny
+    "**/.netrc": deny
+    "**/settings.xml": deny
     "gradle.properties": deny
     "**/gradle.properties": deny
+    "**/*.tfvars": deny
+    "**/*.tfstate": deny
+    "**/*.tfstate.*": deny
+    "**/kubeconfig*": deny
+    "**/.kube/**": deny
+    "**/.aws/**": deny
+    "**/.azure/**": deny
+    "**/.docker/config.json": deny
+    "**/credentials*": deny
+    "**/secrets/**": deny
   grep: deny
   edit:
     "*": ask
+    ".opencode/reports/**": allow
+    "**/.env": deny
+    "**/.env.*": deny
+    "**/*.pem": deny
+    "**/*.key": deny
+    "**/*.p12": deny
+    "**/*.pfx": deny
+    "**/*.jks": deny
+    "**/*.keystore": deny
+    "**/id_rsa*": deny
+    "**/id_ed25519*": deny
+    "**/.npmrc": deny
+    "**/.pypirc": deny
+    "**/.netrc": deny
+    "**/settings.xml": deny
     "gradle.properties": deny
     "**/gradle.properties": deny
-    ".opencode/reports/**": allow
+    "**/*.tfvars": deny
+    "**/*.tfstate": deny
+    "**/*.tfstate.*": deny
+    "**/kubeconfig*": deny
+    "**/.kube/**": deny
+    "**/.aws/**": deny
+    "**/.azure/**": deny
+    "**/.docker/config.json": deny
+    "**/credentials*": deny
+    "**/secrets/**": deny
   bash:
     "*": deny
     "git status*": allow
@@ -32,6 +80,45 @@ permission:
     "python3 -m py_compile .opencode/skills/software-knowledge/scripts/*": allow
     "python3 .opencode/skills/software-knowledge/scripts/compile_graph.py *": allow
     "python3 .opencode/skills/software-knowledge/scripts/lint_knowledge.py *": allow
+    "python scripts/check_secret_baseline.py*": allow
+    "python3 scripts/check_secret_baseline.py*": allow
+    "env*": deny
+    "printenv*": deny
+    "set": deny
+    "export -p*": deny
+    "Get-ChildItem env:*": deny
+    "gci env:*": deny
+    "*cat *.env*": deny
+    "*type *.env*": deny
+    "*Get-Content *.env*": deny
+    "*gradle.properties*": deny
+    "*settings.xml*": deny
+    "*.tfvars*": deny
+    "*tfstate*": deny
+    "git log -p*": deny
+    "git log --patch*": deny
+    "git show*": deny
+    "git stash show*": deny
+    "terraform output*": deny
+    "terraform show*": deny
+    "terraform state*": deny
+    "kubectl get secret*": deny
+    "kubectl describe secret*": deny
+    "kubectl * -o yaml*": deny
+    "kubectl * -o json*": deny
+    "docker inspect*": deny
+    "docker history*": deny
+    "aws configure*": deny
+    "aws secretsmanager*": deny
+    "aws ssm get-parameter*": deny
+    "az keyvault secret*": deny
+    "gcloud secrets*": deny
+    "gh auth token*": deny
+    "gh secret*": deny
+    "mvn help:effective-settings*": deny
+    "*gradle* properties*": deny
+    "npm config list*": deny
+    "npm config get*": deny
   task:
     "*": deny
   skill: allow
@@ -102,17 +189,16 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    permission:
      read:
        "*": allow
-       "gradle.properties": deny
-       "**/gradle.properties": deny
+       <secret baseline §1 path denials>
      grep: deny
      edit:
-       "gradle.properties": deny
-       "**/gradle.properties": deny
        "<explicit writable path>": allow
        "<explicit protected path>": deny
+       <secret baseline §1 path denials>
      bash:
        "*": deny
        "<specific command pattern>": allow
+       <secret baseline §3 shell denials + stack additions, after all allows>
      task:
        "*": deny
        "<named-specialist>": allow
@@ -144,12 +230,18 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    - Least-privilege permissions
    - Explicit “never do X” rules when needed
    - Model choice justified by current benchmarks
-   - Treat `gradle.properties` as secret-bearing: every generated agent must
-     deny `gradle.properties` and `**/gradle.properties` through `read`, must
-     deny edits to those paths, must not receive shell or Git history/diff
-     commands that can print it, and must use named Gradle build-task allowlists
-     rather than unrestricted Gradle execution. Explicitly deny the Gradle
-     `properties` task even after task allows.
+   - **Secret protection is implicit and non-negotiable.** Apply the secret
+     baseline in `.opencode/skills/agent-org-design/reference/secret-baseline.md`
+     to every agent you generate, install, or approve in an audit, even when the
+     user never mentions secrets. It covers path denials on `read` and `edit`,
+     `grep: deny`, shell and Git-history denials placed after all bash allows,
+     stack-specific additions for the detected build tools (Maven
+     `settings.xml`, Gradle `gradle.properties`, Terraform state, kubeconfig, …),
+     and the mandatory redaction clause in the prompt. Tighten it freely; never
+     relax it. If a request would require relaxing it, state the risk and
+     return `UNSAFE TO CONTINUE`. Before reporting an installation complete, run
+     `python3 scripts/check_secret_baseline.py <confirmed-path>/.opencode/agents`.
+     In audits, a missing baseline route is a Critical finding.
 
 4. **Software knowledge option for new agents and teams**  
    When the user asks to create a new agent or team, ask this focused question
@@ -240,6 +332,12 @@ and follow its lifecycle gates. Do not substitute an informal combination of
 lower-level skills.
 
 ### Boundaries
+- Never read, print, log, commit, or pass to another agent any credential,
+  token, private key, password, or connection string. If you encounter one,
+  cite only the file and line, write `[REDACTED]` instead of the value, report
+  it as a finding, and continue without using it.
+- Never request, attempt, or suggest widening permissions to reach a
+  secret-bearing file or command. Report `BLOCKED` instead.
 - Do not silently edit agent, skill, or configuration files.
 - When the user explicitly asks you to create or install an agent or team,
   obtain the destination path from the user before making changes.

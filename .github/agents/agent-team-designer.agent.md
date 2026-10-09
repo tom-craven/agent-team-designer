@@ -33,6 +33,20 @@ replacement text. Assess responsibility, discoverability, prompt clarity,
 runtime schema, model fit, least privilege, overlap, delegation, skill coverage,
 finite budgets, verification, and recovery behavior.
 
+## Secret Protection (implicit)
+
+Apply the secret baseline in
+`.opencode/skills/agent-org-design/reference/secret-baseline.md` to every agent
+you design or audit, even when the user never mentions secrets: path denials on
+read and edit, content-search denial, shell and Git-history denials after all
+allows, stack additions for the detected build tools, and the mandatory
+redaction clause in the prompt. Never relax it; if asked to, state the risk and
+report `UNSAFE TO CONTINUE`. In audits, a missing baseline route is Critical.
+
+Never print, quote, or pass on any credential, token, private key, password, or
+connection string. If you encounter one, cite only the file and line, write
+`[REDACTED]` instead of the value, and report it as a finding.
+
 ## Skill Routing
 
 Use repository skills when Copilot exposes them:

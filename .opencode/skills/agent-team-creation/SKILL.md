@@ -45,6 +45,9 @@ Before writing anything:
   credentials, tokens, private keys, or session data.
 - Identify project domains, recurring workflows, risk boundaries, existing
   agents, capability gaps, and conflicting instructions.
+- Record build tools and secret-bearing file types present (by path pattern
+  only — never open or quote their contents) so the secret baseline's stack
+  additions can be selected.
 - Produce a source inventory and evidence-based capability requirements.
 
 Do not design roles until this evidence exists.
@@ -71,13 +74,14 @@ For every approved role:
 3. Derive required capabilities from the role rather than assigning a generic
    skill bundle.
 4. Select mode, finite step budget, and least-privilege permissions.
-   For Gradle repositories, treat `gradle.properties` as secret-bearing. Add
-   explicit `read` denials for `gradle.properties` and
-   `**/gradle.properties`, deny edits, deny content-search tools that cannot
-   exclude those paths, deny direct or Git-mediated shell reads, and allow only
-   named Gradle build or verification tasks. Never grant
-   unrestricted Gradle execution or property-reporting tasks; place an explicit
-   `properties`-task denial after task allows.
+   Apply the secret baseline from
+   `.opencode/skills/agent-org-design/reference/secret-baseline.md` to every
+   agent without waiting for the user to ask: `read`/`edit` path denials,
+   `grep: deny`, shell and Git-history denials after all bash allows, the
+   stack additions for every build tool found in step 1 (for example Maven
+   `settings.xml` and deploy/release goals, Gradle `gradle.properties` with
+   named-task allowlists and a `properties`-task denial, Terraform state), and
+   the mandatory redaction clause in the prompt. Never relax it.
    When the user requested `software-knowledge` for the team, the orchestrator
    / primary and every agent assigned that skill must receive `edit` allow on
    `knowledge/**`, including scoped file deletion, even if they otherwise cannot
@@ -166,6 +170,8 @@ invariants:
 
 ### 7. Validate the runnable team
 
+- Run `python3 scripts/check_secret_baseline.py <confirmed-path>/.opencode/agents`.
+  Any failure blocks the runtime gate.
 - Validate JSON or JSONC syntax and the current OpenCode schema.
 - Confirm every configured agent, prompt, instruction, skill path, and
   delegation target resolves.

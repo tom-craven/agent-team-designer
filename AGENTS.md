@@ -27,13 +27,17 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 - Prefer existing skills from skills.sh when possible
 - Security-audit third-party skills before recommending install
 - Least-privilege permissions
-- Treat `gradle.properties` as secret-bearing in every generated team: deny
-  `gradle.properties` and `**/gradle.properties` through `read`, block direct
-  shell reads, deny content-search tools that cannot enforce path exclusions,
-  block indirect Git diff/history disclosure, and never grant
-  unrestricted Gradle execution. Allow only named build and verification tasks,
-  with publish, release, push, and property-reporting operations denied. Deny
-  edits to the same paths as defense in depth.
+- Apply the secret-protection baseline
+  (`.opencode/skills/agent-org-design/reference/secret-baseline.md`) to every
+  generated or audited agent by default, without the user asking: `read` and
+  `edit` denials for secret-bearing paths (`.env*`, keys, keystores,
+  `settings.xml`, `gradle.properties`, `.npmrc`, `*.tfvars`, Terraform state,
+  kubeconfig, cloud credentials), `grep: deny`, shell and Git-history
+  denials after all bash allows, stack-specific additions (for example
+  Gradle named-task allowlists with the `properties` task denied, and Maven
+  deploy/release/effective-settings denied), and the redaction clause in
+  every prompt. Never relax it. Verify with
+  `python3 scripts/check_secret_baseline.py <agents-dir>`.
 - One clear job per agent
 - Use `skill-creator` when a capability gap appears
 - Use `agent-team-creation` for end-to-end creation or restructuring of a runnable team

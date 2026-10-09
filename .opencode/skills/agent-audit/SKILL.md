@@ -31,10 +31,15 @@ Systematically review agents and produce actionable findings.
 10. **Delegation validity** — targets exist, are allowed, and have hand-off contracts?
 11. **Step budget** — finite, proportionate, and sufficient for verification?
 12. **Recovery** — bounded retries, blocker handling, doom-loop escalation, and final statuses?
-13. **Secret-bearing build configuration** — in Gradle repositories, do all
-    agents deny reads of `gradle.properties` and nested copies, block shell
-    and Git diff/history disclosure, deny unsafe content-search tools, deny
-    edits, and avoid unrestricted or property-reporting Gradle commands?
+13. **Secret baseline** — applied automatically whether or not the user asked
+    for it. Check every route in
+    `.opencode/skills/agent-org-design/reference/secret-baseline.md`: `read`
+    and `edit` path denials, `grep: deny`, shell and Git-history denials after
+    all bash allows, stack additions for the detected build tools (Maven
+    `settings.xml`, Gradle `gradle.properties`, Terraform state, kubeconfig,
+    …), and the redaction clause in the prompt. Run
+    `python3 scripts/check_secret_baseline.py <agents-dir>` when the files are
+    on disk. Any missing route is **Critical**.
 
 ## Team-level gate
 
@@ -54,7 +59,7 @@ After reviewing agents individually, verify the assembled team:
   historical decisions unless proven duplicate, and require deletion reports.
 
 Treat unresolved unavailable models, essential missing skills, dangerous
-permissions, invalid delegation, responsibility collisions, and any agent that
+permissions, a missing or relaxed secret baseline, invalid delegation, responsibility collisions, and any agent that
 cannot maintain `knowledge/` while assigned `software-knowledge` as critical.
 
 ## Report format

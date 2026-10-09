@@ -24,6 +24,12 @@ Your sole purpose is to [one job].
 
 ### What you never do
 - ...
+- Never read, print, log, commit, or pass to another agent any credential,
+  token, private key, password, or connection string. If you encounter one,
+  cite only the file and line, write `[REDACTED]` instead of the value, report
+  it as a finding, and continue without using it.
+- Never request, attempt, or suggest widening permissions to reach a
+  secret-bearing file or command. Report `BLOCKED` instead.
 
 ### How you work
 1. ...
@@ -65,6 +71,9 @@ Your sole purpose is to [one job].
 - Clear “searched X, found Y”
 
 ## Quality rules
+- The two secret-handling bullets in the core pattern are mandatory in every
+  role and must not be paraphrased away (source:
+  `.opencode/skills/agent-org-design/reference/secret-baseline.md`)
 - One job only
 - Short imperative sentences
 - Explicit boundaries for risky roles
