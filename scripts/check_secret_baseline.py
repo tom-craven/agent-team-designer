@@ -5,10 +5,12 @@ Usage: python3 scripts/check_secret_baseline.py [AGENTS_DIR ...]
 Defaults to .opencode/agents. Exits 1 when any agent fails.
 
 Baseline source: .opencode/skills/agent-org-design/reference/secret-baseline.md
-Dependency-free: parses the simple nested-map frontmatter used by agent files.
+Accepts V1 ``permission:`` maps and native V2 ``permissions:`` rule lists
+(last matching rule wins). Dependency-free.
 """
 from __future__ import annotations
 
+import fnmatch
 import re
 import sys
 from pathlib import Path
@@ -66,12 +68,109 @@ def ordered_rule(rules, pattern: str) -> str | None:
     return None
 
 
+def parse_v2_permissions(frontmatter: str) -> list[dict] | None:
+    """Parse a native V2 ``permissions:`` list of action/resource/effect rules.
+
+    Supports block items (``- action: x`` followed by indented keys) and inline
+    flow items (``- { action: x, resource: y, effect: z }``). Returns None when
+    no ``permissions:`` key is present.
+    """
+    lines = frontmatter.splitlines()
+    start = next((i for i, l in enumerate(lines)
+                  if re.match(r"^permissions:\s*$", l)), None)
+    if start is None:
+        return None
+    rules: list[dict] = []
+    current: dict | None = None
+    for raw in lines[start + 1:]:
+        if raw.strip() and not raw.startswith((" ", "-")):
+            break  # next top-level key
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("-"):
+            current = {}
+            rules.append(current)
+            line = line[1:].strip()
+            if line.startswith("{") and line.endswith("}"):
+                for part in line[1:-1].split(","):
+                    if ":" in part:
+                        k, v = part.split(":", 1)
+                        current[k.strip()] = _unquote(v)
+                current = None
+                continue
+        if current is not None and ":" in line:
+            k, v = line.split(":", 1)
+            current[k.strip()] = _unquote(v)
+    return rules
+
+
+def _unquote(value: str) -> str:
+    return value.split(" #")[0].strip().strip('"').strip("'")
+
+
+# V1 action names map to their V2 equivalents.
+ACTION_ALIASES = {"bash": "shell", "task": "subagent", "write": "edit",
+                  "patch": "edit"}
+
+
+def effective(rules: list[dict], action: str, probe: str) -> tuple[str | None, int]:
+    """Return (effect, index) of the last rule matching action and probe."""
+    result: tuple[str | None, int] = (None, -1)
+    for i, r in enumerate(rules):
+        r_action = ACTION_ALIASES.get(r.get("action", ""), r.get("action", ""))
+        if not fnmatch.fnmatchcase(action, r_action):
+            continue
+        resource = r.get("resource", "*")
+        if resource == probe or fnmatch.fnmatchcase(probe, resource):
+            result = (r.get("effect"), i)
+    return result
+
+
+def check_v2_rules(rules: list[dict]) -> list[str]:
+    errors: list[str] = []
+    for action in ("read", "edit"):
+        for p in REQUIRED_PATH_DENIES:
+            if effective(rules, action, p)[0] != "deny":
+                errors.append(f"{action}: secret path {p} is not effectively denied")
+    if effective(rules, "grep", "*")[0] != "deny":
+        errors.append("grep must be deny (cannot enforce read exclusions)")
+
+    shell_allows = [i for i, r in enumerate(rules)
+                    if ACTION_ALIASES.get(r.get("action"), r.get("action"))
+                    in ("shell", "*") and r.get("effect") == "allow"]
+    for i in shell_allows:
+        if rules[i].get("resource", "*") in UNSCOPED_BASH:
+            errors.append(
+                f"shell: unscoped allow '{rules[i].get('resource', '*')}' can disclose secrets")
+    if shell_allows:
+        last_allow = max(shell_allows)
+        for p in REQUIRED_BASH_DENIES:
+            eff, idx = effective(rules, "shell", p)
+            if eff != "deny":
+                errors.append(f"shell: missing deny for {p}")
+            elif idx < last_allow:
+                errors.append(f"shell: deny '{p}' must come after all allows")
+    return errors
+
+
 def check_agent(path: Path) -> list[str]:
     errors: list[str] = []
-    fm, body = parse_frontmatter(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    fm, body = parse_frontmatter(text)
+    match = re.match(r"^---\r?\n(.*?)\r?\n---", text, re.S)
+    v2_rules = parse_v2_permissions(match.group(1)) if match else None
+    if v2_rules is not None:
+        if "permission" in fm:
+            errors.append("mixes V1 'permission' and V2 'permissions'; use one format")
+        errors.extend(check_v2_rules(v2_rules))
+        if PROMPT_MARKER not in body:
+            errors.append("prompt: missing mandatory secret-redaction clause")
+        return errors
+
     perm = fm.get("permission")
     if not isinstance(perm, dict):
-        return ["missing permission block"]
+        return ["missing permission block (V1 'permission' or V2 'permissions')"]
 
     read = perm.get("read")
     if read == "deny":

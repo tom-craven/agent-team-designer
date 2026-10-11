@@ -28,10 +28,14 @@ Before writing anything:
 
 1. Confirm the target repository and whether the user wants analysis only or
    installation.
-2. For installation, display every exact file or directory to be created or
+2. Run `opencode --version` and record the major version. Generate native
+   configuration and agent frontmatter for that version, and use only that
+   version's documentation (V2: https://opencode.ai/v2/docs/). If the command
+   is unavailable or denied, ask the user for the version; do not guess.
+3. For installation, display every exact file or directory to be created or
    modified and obtain explicit confirmation.
-3. Treat the destination as untrusted until the user confirms it.
-4. Never create global registrations, symbolic links, or files outside the
+4. Treat the destination as untrusted until the user confirms it.
+5. Never create global registrations, symbolic links, or files outside the
    confirmed destination.
 
 ## Lifecycle
@@ -123,7 +127,13 @@ Record every capability as `satisfied`, `new skill required`, `optional`, or
 
 When `software-knowledge` is in the approved skill set, treat scoped edit and
 deletion access to `knowledge/**` for the orchestrator and every agent assigned
-the skill as essential, not optional broadening. An affected agent with
+the skill as essential, not optional broadening. Also grant the orchestrator
+(the scaffold owner) `edit` allow on the repository-root `ARCHITECTURE.md`
+only, because the scaffold workflow requires filling it; do not widen this to
+other root files. Its prompt must name `knowledge/` and `ARCHITECTURE.md` as
+the only files it may write, and its scaffold step must cover
+`init_knowledge.py .`, filling `knowledge/system.md` and `ARCHITECTURE.md`,
+then compile and strict lint. An affected agent with
 `edit: deny`, or with `"*": deny` in the same `edit` object as
 `knowledge/**`, is a skill-gate failure.
 
@@ -146,6 +156,63 @@ invariants:
   reclassifies and links knowledge and never makes design decisions. Add it only
   with user agreement.
 
+**Python environment for skill scripts (required when any approved skill ships
+Python scripts, such as `software-knowledge`):**
+
+- Include `<confirmed-path>/.venv/` and a `.venv/` line in
+  `<confirmed-path>/.gitignore` in the pre-write confirmation list.
+- **Automated environment setup (mandatory, performed by the designer):**
+  during installation, run each command as a single command with the shell
+  tool's working directory set to `<confirmed-path>` — never prefix
+  `cd <path> &&` (V2 checks each segment and the bare `cd` is denied):
+  1. `python3 -m venv .venv` — skip when `.venv/pyvenv.cfg` already exists;
+     reuse it, never recreate.
+  2. `.venv/bin/pip install PyYAML pytest`
+  3. `.venv/bin/python -c "import yaml, pytest"`
+  4. `.venv/bin/python -m pytest <abs-skill-dir>/tests -q` when the skill ships
+     tests (`software-knowledge` does).
+  Install exactly PyYAML and pytest plus any further dependency the skill
+  documents; never install into the global Python. Do not hand these steps to
+  the user unless a command is denied or fails twice; then report `BLOCKED`
+  with the exact commands.
+- Grant each agent its script commands in the `.venv/bin/python <script> …`
+  form, as exact commands, with `python3 <script> …` kept only as a fallback.
+  Agents do not always invoke commands in one canonical form, so for the
+  skill's compile and strict-lint commands (`compile_graph.py .` and
+  `lint_knowledge.py . --strict` for `software-knowledge`) also grant these
+  exact variants to every agent that runs them:
+  `<confirmed-path>/.venv/bin/python <abs-script> …` and
+  `cd <confirmed-path> && .venv/bin/python <abs-script> …`. Use absolute
+  script paths, no trailing wildcards, and keep all of them before the secret
+  baseline shell denials. The scaffold (`init_knowledge.py .`) is not complete
+  until compile and strict lint have both run, so the orchestrator must hold
+  all three.
+  Never grant bare `.venv/bin/python*`, `pip*`, or `.venv/bin/pip*` to team
+  agents; installation is the designer's job, not the team's.
+- **OpenCode V2 compound commands:** the shell scanner checks every `&&`, `;`,
+  and `|` segment separately, so a single allow for
+  `cd <confirmed-path> && .venv/bin/python …` never matches as a whole. When
+  granting that form, also grant the exact segment `cd <confirmed-path>`.
+  Prefer the non-compound forms.
+- **External directories (V2 checks these before `shell`):** grant
+  `external_directory` allow for `<skill-dir>/*` and `<skill-dir>/scripts/*`
+  (V2 boundary form `<dir>/*`, not `/**`), and for the interpreter's canonical
+  directories read from `<confirmed-path>/.venv/pyvenv.cfg` (`home`, and the
+  directory containing `executable`). Place these after any
+  `external_directory "*": deny`. A symlinked `.venv/bin/python` resolves
+  outside the repository, so omitting them blocks every script.
+- Prompts and `AGENTS.md` say to run scripts with `.venv/bin/python` from the
+  repository root and never to install packages.
+- If the venv or dependency install cannot be performed or verified (for
+  example the designer's shell is denied), the runtime gate fails: report
+  `BLOCKED`, give the user the exact install and verify commands, and do not
+  describe the team as able to run the scripts. Do not downgrade this to
+  `PARTIAL`.
+- **Permission simulation (runtime gate):** for every agent and every granted
+  script command form, walk the agent's ordered rules (last match wins), check
+  each external directory the command touches, then each shell segment. Any
+  segment not resolving to `allow` fails the gate.
+
 ### 5. Audit the complete design
 
 - Load `agent-audit` after all proposed agents and skills are visible together.
@@ -166,6 +233,16 @@ invariants:
   defaults. Do not add a top-level `agent` object for created agents.
 - When migrating an existing JSON agent, transfer every unique field to the
   Markdown file and remove the JSON entry in the same change.
+- After the agent files are created, set `"default_agent"` in the target's
+  `opencode.json` / `opencode.jsonc` to the team's orchestrator / primary agent
+  (the agent with `mode: primary` or `all` that owns delegation). Name the
+  file and value in the pre-write confirmation list. If an existing
+  `default_agent` points elsewhere, surface the conflict and ask before
+  replacing it. Never point it at a `subagent`-mode or hidden agent.
+- Match the config shape the installed OpenCode version accepts. Copy the shape
+  from a configuration known to load on the same machine (for example
+  `"skills": { "paths": [...] }` versus `"skills": [...]`). Do not switch
+  between V1 and V2 shapes without the runtime error text.
 - Never broaden permissions merely to make validation pass.
 
 ### 7. Validate the runnable team
@@ -178,6 +255,13 @@ invariants:
 - Compare `.opencode/agents/*.md` names with keys under any existing JSON
   `agent` object. Zero duplicates are allowed; a duplicate fails the runtime
   gate. Created teams should have no agent definitions in JSON at all.
+- Confirm `default_agent` names an existing `.opencode/agents/<name>.md` whose
+  `mode` is `primary` or `all`; a missing or invalid default fails the runtime
+  gate.
+- When a skill ships Python scripts, confirm `.venv/bin/python -c "import yaml"`
+  (or the skill's documented dependency check) succeeds in the target, and run
+  the skill's lint script once through `.venv/bin/python`. A missing venv fails
+  the runtime gate.
 - Compare runtime configuration against the approved agent definitions.
 - Exercise representative routing, delegation, denial, completion, and
   doom-loop recovery cases where the environment permits.

@@ -45,7 +45,8 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
   orchestrator / primary and every agent assigned that skill edit access to
   `knowledge/**` (including deletion of proven stale, duplicate, or disposable
   superseded artefacts), plus the skill compile / lint scripts, even if that
-  agent otherwise has `edit: deny`. Do not put
+  agent otherwise has `edit: deny`. Also grant the orchestrator edit access to
+  the root `ARCHITECTURE.md` only, which the scaffold requires it to fill. Do not put
   `"*": deny` on `edit` in the same object — it wins over `knowledge/**`
   allow and blocks Write/StrReplace. Deny named application paths instead.
   Do not install the skill without a working `knowledge/` write permission.

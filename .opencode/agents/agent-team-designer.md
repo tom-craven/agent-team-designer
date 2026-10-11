@@ -67,6 +67,8 @@ permission:
   bash:
     "*": deny
     "git status*": allow
+    "opencode --version": allow
+    "opencode -v": allow
     "mkdir *": allow
     "New-Item -ItemType Directory*": allow
     "python3 scripts/sync_copilot_adapters.py": allow
@@ -82,6 +84,15 @@ permission:
     "python3 .opencode/skills/software-knowledge/scripts/lint_knowledge.py *": allow
     "python scripts/check_secret_baseline.py*": allow
     "python3 scripts/check_secret_baseline.py*": allow
+    "python3 -m pytest tests/test_check_secret_baseline.py": allow
+    "python3 -m venv .venv": allow
+    ".venv/bin/pip install PyYAML": allow
+    ".venv/bin/pip install PyYAML pytest": allow
+    ".venv/bin/python -c \"import yaml\"": allow
+    ".venv/bin/python -c \"import yaml, pytest\"": allow
+    ".venv/bin/python -m pytest /Users/tom.craven/IdeaProjects/commerce-agent-team-designer/.opencode/skills/software-knowledge/tests -q": allow
+    ".venv/bin/python /Users/tom.craven/IdeaProjects/commerce-agent-team-designer/.opencode/skills/software-knowledge/scripts/lint_knowledge.py .": allow
+    ".venv/bin/python -m pytest tests/test_check_secret_baseline.py": allow
     "env*": deny
     "printenv*": deny
     "set": deny
@@ -210,6 +221,11 @@ Never describe a model as "best" without stating the evidence and trade-offs.
 
     Use pattern objects for `bash` and `task`, wildcard first, specific
     exceptions after — the last matching rule wins.
+    The template above is the V1 shape. Run `opencode --version` first; for
+    OpenCode V2 emit the native `permissions:` list of `action` / `resource` /
+    `effect` rules (`bash` → `shell`, `task` → `subagent`) and `"skills": [...]`
+    in shared config, following https://opencode.ai/v2/docs/. Never mix V1 and
+    V2 permission formats within one agent.
     Do **not** apply that pattern to `edit`. A catch-all `edit: "*": deny`
     wins over later path allows, so Write/StrReplace cannot touch
     `knowledge/**` even when it is listed as allow.
@@ -268,8 +284,9 @@ Never describe a model as "best" without stating the evidence and trade-offs.
     references first, preserve historical decisions by deprecating and linking
     them unless they are proven duplicates, compile and lint after deletion, and
     report every deleted path and rationale. Do not grant shell deletion
-    commands for this purpose. Instruct that orchestrator that `knowledge/` is
-    the only source tree it may write; it still must not implement application
+    commands for this purpose. Instruct that orchestrator that `knowledge/` and
+    the root `ARCHITECTURE.md` (which the scaffold requires it to fill) are the
+    only files it may write; it still must not implement application
     code. Colocated `<Stem>.context.md` files beside source stay with implementing
     specialists.
    If the user answers no, do not add or configure it, and record that

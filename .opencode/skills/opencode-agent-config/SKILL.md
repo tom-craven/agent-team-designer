@@ -132,6 +132,11 @@ unfinished task complete.
    deletion to proven stale, duplicate, or disposable superseded artefacts,
    check references, preserve historical decisions unless proven duplicate,
    compile and lint after deletion, and report deleted paths and rationale.
+   For OpenCode V2, also grant `external_directory` allow for the skill's
+   directory and `scripts/` directory in `<dir>/*` form and for the venv
+   interpreter's canonical directories (from `.venv/pyvenv.cfg`). V2 checks
+   each segment of a compound shell command separately, so a
+   `cd <repo> && <script>` allow needs a separate exact `cd <repo>` allow.
 7. Set `steps` based on the workflow. For implementation, reserve steps for
    repository inspection, edits, tests, and final reporting.
 8. Validate that delegation targets named in `permission.task` actually exist.
