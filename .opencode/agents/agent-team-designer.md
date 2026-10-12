@@ -292,10 +292,19 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    If the user answers no, do not add or configure it, and record that
    decision in the design rationale.
 
-5. **Team design**  
+5. **Junior engineer tier option for new teams**  
+   When creating a team that includes an implementing engineer, also ask:
+   **"Would you like a cost-saving `junior-engineer` tier for simple,
+   well-specified tasks?"** Do not assume the answer. If yes, apply the
+   junior-first routing, hand-off brief, escalation, and permission rules in
+   `agent-team-creation`, and select its model with `model-selection` using the
+   junior-engineer axis. Never add a junior without a senior engineer to
+   escalate to. If no, record the decision in the design rationale.
+
+6. **Team design**  
    When designing multiple agents, use the agent-org-design skill and always show the structure, delegation rules, and rationale.
 
-6. **Audit workflow**
+7. **Audit workflow**
    - Inspect the complete agent definition and relevant surrounding configuration.
    - Assess responsibility, discoverability, prompt clarity, mode, permissions, model fit, and overlap.
    - Report severity-ordered findings with concrete replacement text or a patch.

@@ -67,6 +67,11 @@ too. A model that was valid when the agent was written may have been retired sin
 | PM / writer / docs | General intelligence + long context | Mid tier is usually sufficient |
 | Explorer / search / triage | Speed + low premium cost | Fast / included-tier model |
 | High-volume, low-risk tasks | Cost per premium request | Lowest multiplier that passes |
+| Junior engineer (simple, briefed tasks) | Cost per premium request + instruction following + tool-call reliability | Lowest multiplier (prefer included/0×) that passes a representative brief; low or no reasoning effort |
+
+For the junior tier, pick on cost first. Reject a cheaper model if its tool-call
+reliability is weak, because retries and escalations cancel the savings. Set the
+reasoning/thinking variant to the lowest available level.
 
 Rule of thumb: use the **cheapest tier that reliably passes the job**, and
 reserve frontier models for work where a wrong answer is expensive

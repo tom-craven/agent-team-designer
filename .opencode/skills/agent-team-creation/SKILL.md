@@ -66,6 +66,43 @@ Do not design roles until this evidence exists.
 - Obtain user agreement on the organisation before installation unless the user
   explicitly authorized an end-to-end implementation from an agreed brief.
 
+#### Optional junior engineer tier (always ask)
+
+When the team includes an implementing engineer, ask before finalising the
+organisation: **"Would you like a cost-saving `junior-engineer` tier for simple,
+well-specified tasks?"** Do not assume the answer; record it in the rationale.
+
+If yes, add `junior-engineer` (`mode: subagent`) with **junior-first routing**:
+
+- The orchestrator routes a task to the junior by default when **all** hold:
+  1. ≤ 3 files in one module, with exact paths named in the brief;
+  2. no public API, contract, schema, migration, or cross-module change;
+  3. an existing in-repo pattern or example to follow;
+  4. a deterministic acceptance check (named test, lint, or build command);
+  5. not in a protected domain (auth, payments, pricing, checkout, security,
+     concurrency, data deletion, infrastructure, or domains the repository
+     marks high-risk).
+- Anything else goes to the senior engineer. Junior tasks must never involve
+  diagnosing an unknown root cause.
+- Hand-off brief (mandatory): goal, allowed files, pattern to follow,
+  acceptance command, explicit out-of-scope list.
+- The junior returns `ESCALATE` with findings, without improvising, when the
+  check fails twice, scope exceeds the brief, or the brief is ambiguous. The
+  orchestrator re-routes to the senior, attaching the junior's findings.
+- Review: passing acceptance checks suffice for junior work; the senior or
+  reviewer inspects the diff only when the task touched shared code or
+  escalated.
+- Permissions: edit limited to application/test paths, with no knowledge or
+  config writes unless the team grants `software-knowledge` to it; shell
+  limited to the named test/lint/build commands; `task: "*": deny`; full
+  secret baseline. Lower step budget than the senior.
+- Select its model with `model-selection` using the junior-engineer axis.
+- Never add a junior tier without a senior engineer to escalate to.
+- Report the cost assumption, and tell the user to watch the escalation
+  rate: above ~25–30% means the routing checklist is too loose.
+
+If no, do not create the role and record the decision.
+
 ### 3. Design each agent
 
 For every approved role:
@@ -219,6 +256,9 @@ Python scripts, such as `software-knowledge`):**
 - Block configuration on unresolved critical findings.
 - Require concrete corrections for role overlap, invalid delegation, excessive
   permissions, unavailable models, missing skills, or incomplete recovery rules.
+- When a junior-engineer tier exists, treat overlapping senior/junior
+  descriptions, a missing routing checklist, or a missing escalation route to
+  the senior as a Critical finding.
 
 ### 6. Create OpenCode configuration
 
