@@ -1,6 +1,6 @@
 ---
 name: model-selection
-description: "Select the best model for an agent profile from the models available via the GitHub Copilot integration, using current benchmark evidence (coding, reasoning, speed, premium-request cost). Use whenever setting or changing an agent's model field, designing a new agent, or optimizing cost/performance."
+description: "Select the best model for an agent profile from the models available via the GitHub Copilot integration, using current benchmark evidence (coding, reasoning, speed, per-token cost). Use whenever setting or changing an agent's model field, designing a new agent, or optimizing cost/performance."
 ---
 
 # model-selection

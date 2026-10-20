@@ -1,6 +1,6 @@
 ---
 name: model-selection
-description: Select the best model for an agent profile from the models available via the GitHub Copilot integration, using current benchmark evidence (coding, reasoning, speed, premium-request cost). Use whenever setting or changing an agent's model field, designing a new agent, or optimizing cost/performance.
+description: Select the best model for an agent profile from the models available via the GitHub Copilot integration, using current benchmark evidence (coding, reasoning, speed, per-token cost). Use whenever setting or changing an agent's model field, designing a new agent, or optimizing cost/performance.
 ---
 
 # Model Selection (GitHub Copilot integration)
@@ -20,7 +20,10 @@ matter how well it benchmarks elsewhere.
 - Write a bare model ID without the `github-copilot/` prefix
 - Pick a model without naming the ranking axis it wins on
 - Assume the catalogue is static — Copilot adds and retires models frequently
-- Ignore premium-request multipliers when a near-equal cheaper model exists
+- Ignore per-token price when a near-equal cheaper model exists
+- Quote premium-request multipliers as the cost basis. Copilot moved to
+  usage-based billing on 2026-06-01; multipliers apply only to legacy annual
+  Pro / Pro+ plans (see Durable caveats)
 
 ## Step 1 — Discover what is actually available (mandatory)
 
@@ -31,8 +34,13 @@ Never recommend from memory. Confirm the live catalogue first, in this order:
    - existing agent files in `.opencode/agents/` (what is already in use)
 2. Check the Copilot docs for the current supported model list:
    - https://docs.github.com/copilot/reference/ai-models/supported-models
-3. Check premium request multipliers:
-   - https://docs.github.com/copilot/concepts/billing/copilot-requests
+3. Check per-token pricing (1 AI credit = $0.01 USD; prices are per 1M tokens):
+   - https://docs.github.com/copilot/reference/copilot-billing/models-and-pricing
+   - Record input, cached input, and output price, the model category
+     (Lightweight / Versatile / Powerful), and any long-context tier with its
+     token threshold. Note promotional prices and their expiry dates.
+   - Only for users on a legacy annual Pro / Pro+ plan, also check the
+     request-based multipliers (see Durable caveats).
 
 Never read `auth.json` or any credential file to enumerate models.
 
@@ -65,13 +73,25 @@ too. A model that was valid when the agent was written may have been retired sin
 | Orchestrator / planner | Reasoning + instruction following | Frontier reasoning tier |
 | Reviewer / security | Coding + careful reasoning | Frontier tier, low temperature |
 | PM / writer / docs | General intelligence + long context | Mid tier is usually sufficient |
-| Explorer / search / triage | Speed + low premium cost | Fast / included-tier model |
-| High-volume, low-risk tasks | Cost per premium request | Lowest multiplier that passes |
-| Junior engineer (simple, briefed tasks) | Cost per premium request + instruction following + tool-call reliability | Lowest multiplier (prefer included/0×) that passes a representative brief; low or no reasoning effort |
+| Explorer / search / triage | Speed + low per-token price | Lightweight-category model |
+| High-volume, low-risk tasks | Input + output price per 1M tokens | Cheapest model that passes |
+| Junior engineer (simple, briefed tasks) | Per-token price + instruction following + tool-call reliability | Cheapest Lightweight/Versatile model that passes a representative brief; low or no reasoning effort |
 
 For the junior tier, pick on cost first. Reject a cheaper model if its tool-call
 reliability is weak, because retries and escalations cancel the savings. Set the
 reasoning/thinking variant to the lowest available level.
+
+Cost reasoning under usage-based billing:
+- Compare models on **blended price**, not input alone. Agent loops are
+  input-heavy but cached input is far cheaper, so weigh input, cached input and
+  output together for the expected workload.
+- Higher reasoning levels and the long-context tier consume more tokens and
+  credits. Default to regular context and reasoning; raise them only for tasks
+  that need it.
+- Stay under a model's long-context threshold where possible, since prices
+  roughly double above it.
+- When two models are within a few points on the quality benchmark, prefer the
+  one with the lower price; state the point gap and the price ratio.
 
 Rule of thumb: use the **cheapest tier that reliably passes the job**, and
 reserve frontier models for work where a wrong answer is expensive
@@ -93,7 +113,8 @@ Only models present in **both** sets are valid recommendations.
 Recommended: github-copilot/<model-id>
 Availability: confirmed via <config file | Copilot supported-models docs>
 Reason: <axis it wins + why it fits this role>
-Cost: <premium request multiplier, or "included">
+Cost: <$ input / cached input / output per 1M tokens, category, long-context
+       threshold if any, promo expiry if any>
 Cheaper alternative: github-copilot/<model-id>
 Premium alternative: github-copilot/<model-id>
 Checked: <YYYY-MM-DD>
@@ -123,5 +144,13 @@ These hold across catalogue changes and must still be re-checked, not assumed:
   enablement. Flag this before recommending it for sensitive code.
 - Models marked *public preview* rather than GA should be avoided for production
   agents.
-- Premium request multipliers are plan-dependent and published separately:
+- Billing is usage-based (per token, converted to AI credits) for current plans.
+  Premium-request multipliers are a legacy concept that applies only to Copilot
+  Pro / Pro+ users who stayed on an annual request-based plan, and that table
+  omits newer models. Use it only when the user confirms such a plan:
   https://docs.github.com/copilot/reference/copilot-billing/request-based-billing-legacy/model-multipliers-for-annual-plans
+- Allowances differ by plan (individual vs pooled Business / Enterprise); state
+  which plan assumption a cost comparison uses.
+- Promotional prices expire (for example a stated end date on a model's row).
+  Report the expiry and the post-promo price if known, because a cost-based
+  choice can flip.

@@ -1,7 +1,7 @@
 ---
 description: Designs, audits, and installs governed OpenCode agents and multi-agent teams using Markdown definitions, least-privilege permissions, audited skills, delegation rules, and validated shared runtime configuration.
 mode: primary
-model: github-copilot/claude-opus-5.5
+model: github-copilot/claude-sonnet-5.5
 temperature: 0.3
 steps: 60
 color: "#ec4899"

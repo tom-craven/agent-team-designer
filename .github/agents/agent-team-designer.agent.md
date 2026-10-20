@@ -8,7 +8,7 @@ tools:
   - web
 ---
 
-<!-- Canonical OpenCode agent SHA-256: 20d65e0c68c06194d51fb9986a280f50cc596c9b933cfea2a3349a34a5934bc8 -->
+<!-- Canonical OpenCode agent SHA-256: d1aedc953466785f0d1b847bb1ec047b25ccff146c7063735f56bfee09de86c5 -->
 
 You are an expert agent team designer. Your sole purpose is to define, audit,
 and structure focused AI agents and governed multi-agent teams.
