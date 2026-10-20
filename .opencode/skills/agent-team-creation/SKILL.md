@@ -212,6 +212,17 @@ Python scripts, such as `software-knowledge`):**
   documents; never install into the global Python. Do not hand these steps to
   the user unless a command is denied or fails twice; then report `BLOCKED`
   with the exact commands.
+- **Windows targets:** the venv interpreter is `.venv\Scripts\python.exe`, not
+  `.venv/bin/python`, and bare `python`/`python3` may resolve to the Microsoft
+  Store alias ("Program 'python.exe' failed to run"). Use `py -3 --version` to
+  confirm a real interpreter, then `py -3 -m venv .venv`,
+  `.venv\Scripts\python.exe -m pip install PyYAML pytest`, and
+  `.venv\Scripts\python.exe -c "import yaml, pytest"`. Grant team agents the
+  `.venv\Scripts\python.exe <repo-relative-script> …` form (plus the
+  forward-slash variant), never bare `python`. Teams used across macOS/Linux
+  and Windows get both the `bin/` and `Scripts\` forms.
+- Reference the skill's own scripts directly; never generate wrapper copies
+  under the target's `scripts/`.
 - Grant each agent its script commands in the `.venv/bin/python <script> …`
   form, as exact commands, with `python3 <script> …` kept only as a fallback.
   Agents do not always invoke commands in one canonical form, so for the

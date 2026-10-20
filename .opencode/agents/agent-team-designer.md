@@ -93,6 +93,19 @@ permission:
     ".venv/bin/python -m pytest /Users/tom.craven/IdeaProjects/commerce-agent-team-designer/.opencode/skills/software-knowledge/tests -q": allow
     ".venv/bin/python /Users/tom.craven/IdeaProjects/commerce-agent-team-designer/.opencode/skills/software-knowledge/scripts/lint_knowledge.py .": allow
     ".venv/bin/python -m pytest tests/test_check_secret_baseline.py": allow
+    # Windows venv install for team targets (run with workdir = confirmed path)
+    "py -3 --version": allow
+    "py -3 -m venv .venv": allow
+    "python -m venv .venv": allow
+    '.venv\Scripts\python.exe -m pip install PyYAML pytest': allow
+    '.venv\Scripts\python.exe -c "import yaml, pytest"': allow
+    '.venv\Scripts\python.exe -m pytest *\.opencode\skills\software-knowledge\tests -q': allow
+    '.venv\Scripts\python.exe *\.opencode\skills\software-knowledge\scripts\compile_graph.py .': allow
+    '.venv\Scripts\python.exe *\.opencode\skills\software-knowledge\scripts\lint_knowledge.py . --strict': allow
+    '.venv\Scripts\python.exe *\scripts\check_secret_baseline.py *': allow
+    # Removal of superseded copies of software-knowledge scripts only
+    'Remove-Item -LiteralPath scripts\compile_graph.py': allow
+    'Remove-Item -LiteralPath scripts\lint_knowledge.py': allow
     "env*": deny
     "printenv*": deny
     "set": deny
