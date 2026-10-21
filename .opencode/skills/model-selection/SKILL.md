@@ -15,9 +15,15 @@ github-copilot/<model-id>
 A model that is not enabled in the Copilot integration is **not selectable**, no
 matter how well it benchmarks elsewhere.
 
+**One sanctioned exception: local Ollama models** (`ollama/<tag>`), governed by
+the "Local Ollama models" section below. The user has enabled the Ollama provider
+in their global OpenCode configuration and approved it for the roles listed
+there. No other non-Copilot provider is approved.
+
 ## Never do
 - Recommend a model that is not confirmed available in the Copilot catalogue
-- Write a bare model ID without the `github-copilot/` prefix
+  (except an approved `ollama/<tag>` under the Local Ollama rules)
+- Write a bare model ID without a provider prefix (`github-copilot/` or `ollama/`)
 - Pick a model without naming the ranking axis it wins on
 - Assume the catalogue is static — Copilot adds and retires models frequently
 - Ignore per-token price when a near-equal cheaper model exists
@@ -65,6 +71,48 @@ has confirmed in this conversation that a documented exemption applies to them.
 When auditing existing agents, check their configured models against this table
 too. A model that was valid when the agent was written may have been retired since.
 
+## Step 1c — Local Ollama models (approved exception)
+
+Model IDs take the form `ollama/<tag>` where `<tag>` is exactly the name shown by
+`ollama list` (for example `ollama/qwen3.8:latest`). Pinned tags are preferred
+over `:latest`; if `:latest` is used, record the model ID hash so a silent
+re-pull is detectable.
+
+**Approved roles:** `junior-engineer` (default, user-approved with
+`ollama/qwen3.8`). Other low-risk roles (explorer, summariser, docs writer) may
+use an Ollama model only after the user confirms it in this conversation.
+**Never** use an Ollama model for the orchestrator, senior engineer, reviewer, or
+any security role unless the user explicitly overrides this after being shown the
+tool-calling and context risks.
+
+**Availability evidence (replaces catalogue checks for these IDs):**
+1. The user's global OpenCode config enables the `ollama` provider. Confirm from
+   the user, or from `~/.config/opencode/opencode.json(c)` `provider.ollama`
+   without reading any credential-bearing field.
+2. The tag appears in `ollama list` output supplied by the user. If the shell is
+   denied, ask the user to run it. Never guess a tag.
+3. `ollama show <tag>` reports `tools` under capabilities. No tool support means
+   the model is invalid for any agent using `edit`, `bash`, or `task`.
+4. The provider config declares the model with a context limit and
+   `num_ctx` raised above Ollama's small default, sized to fit available VRAM.
+   Without it prompts truncate silently.
+
+**Cost:** there is no per-token price. Report it as hardware and time cost
+(GPU/VRAM or RAM, tokens per second) and judge the saving by the measured
+escalation rate, not by assumption.
+
+**Quality evidence:** external rankings may not cover a local tag. Do not invent
+benchmark numbers. State that quality is unverified and apply the pilot gate:
+track first-pass success, escalation rate, and tool-call errors; if escalation
+exceeds about 25–30% or tool-call errors recur, fall back to the Copilot
+alternative.
+
+**Always name a Copilot fallback** (cheapest Lightweight/Versatile model that
+passes) for the same role, and keep the senior engineer on a Copilot model.
+
+**Privacy:** local inference keeps prompts on the machine, but the secret
+baseline applies unchanged.
+
 ## Step 2 — Pick the ranking axis
 
 | Agent role | Primary axis | Copilot-family preference |
@@ -75,7 +123,7 @@ too. A model that was valid when the agent was written may have been retired sin
 | PM / writer / docs | General intelligence + long context | Mid tier is usually sufficient |
 | Explorer / search / triage | Speed + low per-token price | Lightweight-category model |
 | High-volume, low-risk tasks | Input + output price per 1M tokens | Cheapest model that passes |
-| Junior engineer (simple, briefed tasks) | Per-token price + instruction following + tool-call reliability | Cheapest Lightweight/Versatile model that passes a representative brief; low or no reasoning effort |
+| Junior engineer (simple, briefed tasks) | Per-token price + instruction following + tool-call reliability | Cheapest Lightweight/Versatile model that passes a representative brief; low or no reasoning effort. **Local option:** `ollama/qwen3.8` when Step 1c checks pass, with a Copilot fallback |
 
 For the junior tier, pick on cost first. Reject a cheaper model if its tool-call
 reliability is weak, because retries and escalations cancel the savings. Set the
@@ -119,6 +167,19 @@ Cheaper alternative: github-copilot/<model-id>
 Premium alternative: github-copilot/<model-id>
 Checked: <YYYY-MM-DD>
 Note: Copilot's catalogue changes; re-verify before locking this in.
+```
+
+For an Ollama recommendation use this variant instead:
+
+```
+Recommended: ollama/<tag>
+Availability: ollama provider in global config + `ollama list` + tools capability
+Reason: <cost saving for this role>
+Cost: hardware/time only (GPU/VRAM, tokens/sec); no per-token price
+Quality: unverified; pilot gate = escalation rate <~25-30%, no recurring tool errors
+Copilot fallback: github-copilot/<model-id>
+Context: num_ctx = <value>
+Checked: <YYYY-MM-DD>
 ```
 
 ## Notes

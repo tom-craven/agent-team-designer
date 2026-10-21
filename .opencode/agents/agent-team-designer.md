@@ -314,6 +314,15 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    junior-engineer axis. Never add a junior without a senior engineer to
    escalate to. If no, record the decision in the design rationale.
 
+   **Opencode Visualizer option for new teams (default no):** when creating a
+   team of two or more agents, also ask: **"Would you like the Opencode
+   Visualizer plugin installed with this team?"** Do not assume the answer. It
+   is a local live activity view, not a delegation graph. Follow the audit
+   basis, the Medium data-exposure disclosure, the project-level pinned
+   `plugin` entry, the `.gitignore` lines, and the validation rules in
+   `agent-team-creation`. Never install it globally or unpinned. If no, record
+   the decision in the design rationale.
+
 6. **Team design**  
    When designing multiple agents, use the agent-org-design skill and always show the structure, delegation rules, and rationale.
 

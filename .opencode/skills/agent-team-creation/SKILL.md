@@ -97,11 +97,76 @@ If yes, add `junior-engineer` (`mode: subagent`) with **junior-first routing**:
   limited to the named test/lint/build commands; `task: "*": deny`; full
   secret baseline. Lower step budget than the senior.
 - Select its model with `model-selection` using the junior-engineer axis.
+  **Local option (approved):** when asking the junior question, also offer
+  `ollama/qwen3.8:latest` as the junior's model, the cost-saving choice. Do not
+  assume the answer. If chosen:
+  - run the `model-selection` Step 1c checks (global `ollama` provider, tag in
+    `ollama list`, `tools` capability, `num_ctx`), asking the user to run any
+    denied command;
+  - set `model: ollama/qwen3.8:latest` in the junior's Markdown file only, and
+    keep the senior engineer, orchestrator and reviewers on `github-copilot/`
+    models;
+  - if the provider or model must be declared in the target's `opencode.json`,
+    list that shared-settings change in the pre-write confirmation (never an
+    `agent` entry), and prefer reusing the user's global provider;
+  - record the Copilot fallback model and the pilot gate (escalation rate
+    above ~25–30% or recurring tool-call errors means switch the junior back
+    to the fallback);
+  - cap the junior's step budget lower still, since local models loop more.
 - Never add a junior tier without a senior engineer to escalate to.
 - Report the cost assumption, and tell the user to watch the escalation
   rate: above ~25–30% means the routing checklist is too loose.
 
 If no, do not create the role and record the decision.
+
+#### Optional Opencode Visualizer plugin (always ask, default no)
+
+When the team has two or more agents, ask: **"Would you like the Opencode
+Visualizer plugin installed with this team?"** Do not assume the answer; record
+it in the rationale. Describe it accurately: a live, local pixel-art activity
+view built from OpenCode session and tool events, with one character per running
+OpenCode instance. It is **not** a delegation graph and may not show which agent
+called which subagent.
+
+Audit basis (psinetron-opencode-visualizer 1.0.17, source revision
+`10b4a2c075b1d0f4a0b8e85438a6aa98fa973023`, reviewed 2026-10-21; manual review
+of `index.ts` and `visualizer/ocv-server.ts`, `visualizer/index.html` not
+reviewed): verdict **Install with caution**.
+
+- It binds `127.0.0.1:5173` and launches a Chrome app window with fixed
+  arguments; no remote code execution or outbound network calls were found.
+- **Medium:** the WebSocket server does no `Origin` check or authentication, so
+  any local process or web page in the user's browser can register as a viewer
+  and receive forwarded events, including `session.diff` (file diffs),
+  `message.updated`, working directory, and tool names. Treat this as potential
+  code and metadata exposure.
+- **Low:** it writes `.opencode/ocv-debug.log` and `.opencode/viz-skin.json`;
+  the package is from a single maintainer with frequent releases.
+
+If the user answers yes:
+
+1. Offer it only after stating the Medium finding above and obtaining explicit
+   acceptance. Do not offer it for repositories the user describes as
+   sensitive or regulated.
+2. Install at **project level only**: add the pinned entry
+   `"plugin": ["psinetron-opencode-visualizer@1.0.17"]` to the target's
+   `opencode.json` / `opencode.jsonc`, merging with any existing `plugin` array.
+   Never use `--global`, never leave it unpinned (`@latest`), and never create
+   a global registration. Confirm the pinned-name syntax against the installed
+   OpenCode version's documentation first.
+3. Include in the pre-write confirmation list: the `opencode.json` change, the
+   exact plugin entry, and two `<confirmed-path>/.gitignore` lines
+   (`.opencode/ocv-debug.log`, `.opencode/viz-skin.json`).
+4. Re-run the `skill-security-audit` manual review if the version or source
+   revision differs from the audited one, or if `visualizer/index.html` is
+   found to load remote resources. A changed version invalidates the verdict.
+5. The plugin lives only in shared settings. Never add it as, or alongside, an
+   `agent` entry, and never grant any agent permissions on its behalf.
+6. Tell the user it opens a local window on port 5173, how to remove it
+   (delete the entry and the two ignored files), and that nothing is installed
+   until OpenCode next starts.
+
+If no, do not add the plugin and record the decision.
 
 ### 3. Design each agent
 
@@ -295,6 +360,9 @@ Python scripts, such as `software-knowledge`):**
   `"skills": { "paths": [...] }` versus `"skills": [...]`). Do not switch
   between V1 and V2 shapes without the runtime error text.
 - Never broaden permissions merely to make validation pass.
+- When the user accepted the Opencode Visualizer, add only the pinned
+  `plugin` entry described in step 2 to project-level shared settings, and add
+  its two `.gitignore` lines. Omit both when declined.
 
 ### 7. Validate the runnable team
 
@@ -314,6 +382,10 @@ Python scripts, such as `software-knowledge`):**
   the skill's lint script once through `.venv/bin/python`. A missing venv fails
   the runtime gate.
 - Compare runtime configuration against the approved agent definitions.
+- When the Opencode Visualizer was accepted, confirm the `plugin` entry is
+  pinned (`@1.0.17` or the re-audited version), exists only in project-level
+  settings, and is absent from any agent file; confirm the two `.gitignore`
+  lines exist. When declined, confirm no `plugin` entry for it exists.
 - Exercise representative routing, delegation, denial, completion, and
   doom-loop recovery cases where the environment permits.
 - Report included, omitted, missing, and conflicting sources and all unverified
@@ -335,9 +407,13 @@ Do not advance when a gate fails:
 ## Never do
 
 - Create a generic god-agent instead of separating genuinely distinct jobs.
-- Choose models before confirming GitHub Copilot catalogue availability.
+- Choose models before confirming GitHub Copilot catalogue availability (the
+  only exception is an approved `ollama/<tag>` junior model verified per
+  `model-selection` Step 1c).
 - Create a skill before checking existing local, global, and skills.sh options.
 - Recommend or install an unaudited third-party skill.
+- Install the Opencode Visualizer globally, unpinned, or without the user
+  accepting the Medium data-exposure finding.
 - Treat agent Markdown as a runnable team without configuring and validating
   OpenCode when installation was requested.
 - Define or mirror an agent under `opencode.json` or `opencode.jsonc`; created
