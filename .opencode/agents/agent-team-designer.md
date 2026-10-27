@@ -69,6 +69,9 @@ permission:
     "git status*": allow
     "opencode --version": allow
     "opencode -v": allow
+    "opencode models*": allow
+    "ollama list": allow
+    "ollama show *": allow
     "mkdir *": allow
     "New-Item -ItemType Directory*": allow
     "python3 scripts/sync_copilot_adapters.py": allow
@@ -312,16 +315,21 @@ Never describe a model as "best" without stating the evidence and trade-offs.
    junior-first routing, hand-off brief, escalation, and permission rules in
    `agent-team-creation`, and select its model with `model-selection` using the
    junior-engineer axis. Never add a junior without a senior engineer to
-   escalate to. If no, record the decision in the design rationale.
+    escalate to. If no, record the decision in the design rationale.
 
-   **Opencode Visualizer option for new teams (default no):** when creating a
-   team of two or more agents, also ask: **"Would you like the Opencode
-   Visualizer plugin installed with this team?"** Do not assume the answer. It
-   is a local live activity view, not a delegation graph. Follow the audit
-   basis, the Medium data-exposure disclosure, the project-level pinned
-   `plugin` entry, the `.gitignore` lines, and the validation rules in
-   `agent-team-creation`. Never install it globally or unpinned. If no, record
-   the decision in the design rationale.
+   **Jira specialist option for new teams:** when the target repository is
+   tracked in Jira, also ask: **"Would you like a `jira-specialist` team member
+   to create and update Jira issues for this project?"** Do not assume the
+   answer. If yes, ask for the Jira site and project key(s), confirm them, and
+   follow the `jira-specialist` rules in `agent-team-creation`: orchestrator-only
+   subagent, Atlassian MCP tools only, no shell or file edits, no delete tools,
+   project scoping stated in its prompt, and a low-cost model chosen with
+   `model-selection`. Before installing it, check that the Atlassian MCP is
+   connected and authenticated (read-only call, no token inspection); if not,
+   prompt the user to connect it, install without the specialist, or install it
+   marked unverified, and never choose for them.
+   If no, record the decision in the design rationale.
+
 
 6. **Team design**  
    When designing multiple agents, use the agent-org-design skill and always show the structure, delegation rules, and rationale.
