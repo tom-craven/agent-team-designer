@@ -26,10 +26,94 @@ there. No other non-Copilot provider is approved.
 - Write a bare model ID without a provider prefix (`github-copilot/` or `ollama/`)
 - Pick a model without naming the ranking axis it wins on
 - Assume the catalogue is static — Copilot adds and retires models frequently
+- Recommend any model without first retrieving its pricing (see Pricing gate);
+  if pricing cannot be retrieved, alert the user instead of proceeding silently
+- Skip the benchmark attempt. Every recommendation requires a real attempt to
+  retrieve benchmark data (see Benchmark gate); never finish after the
+  catalogue and pricing steps alone
+- Label evidence `EVIDENCE PARTIAL` unless a retrieval was actually attempted
+  and the attempt is described; "partial" means attempted-but-incomplete,
+  never "not tried"
+- Justify a model only by tier, name, or price when benchmark data was
+  retrievable
 - Ignore per-token price when a near-equal cheaper model exists
+- Treat Copilot Fusion as a model with a benchmark score, invent a Fusion slug,
+  or assume it is available in OpenCode because it is in Copilot CLI (Step 1d)
+- Recommend Fusion for an agent with `edit` or `bash` allowed, or for the
+  orchestrator, senior engineer, reviewer or security roles, without an explicit
+  user-accepted override
+- Quote the Fusion paid-plan discount without its expiry date
 - Quote premium-request multipliers as the cost basis. Copilot moved to
   usage-based billing on 2026-06-01; multipliers apply only to legacy annual
   Pro / Pro+ plans (see Durable caveats)
+
+## Pricing gate (critical, non-skippable)
+
+Pricing is a mandatory input to every recommendation. Before writing any
+`model:` value you MUST retrieve and record, for the exact model, from
+https://docs.github.com/copilot/reference/copilot-billing/models-and-pricing :
+input, cached input and output price per 1M tokens, the model category, any
+long-context threshold, and any promotional price with its expiry.
+
+- Fetch the pricing page explicitly. Do not infer price from the model name,
+  tier, memory, or the supported-models page.
+- If the page is large or truncated, search or read the saved output (Read/Grep
+  tools) until the specific model's row is found. Truncation is not a reason to
+  skip the check.
+- Retry at most twice with a changed approach (alternate URL path, saved-output
+  search). Never repeat the same failing call a third time.
+- **If pricing cannot be retrieved or the model's row is not found, ALERT THE
+  USER** with a prominent line at the top of the response:
+  `PRICING NOT VERIFIED for <model-id>: <reason>`. State what was tried, then
+  give the recommendation only as provisional, name a cheaper confirmed
+  alternative if any, and ask the user to confirm or supply pricing before the
+  model is written to any file.
+- Never write a `model:` field to disk, and never report model selection as
+  `COMPLETE`, while pricing is unverified (the same applies to unverified
+  benchmarks; see Benchmark gate). Use `PARTIAL` or `BLOCKED`.
+- Never write "Cost: n/a", leave cost blank, or fall back to premium-request
+  multipliers to hide a failed lookup.
+
+## Benchmark gate (critical, non-skippable)
+
+Benchmark evidence is a mandatory input to every recommendation, alongside
+availability and pricing. Before writing or recommending any `model:` value you
+MUST attempt to retrieve benchmark data for the shortlisted models and record
+the outcome. The attempt itself is not optional, even when the choice looks
+obvious, the repository is small, or the catalogue/pricing steps hit problems.
+
+Required attempt, in order (see "Evidence stack" in Step 3):
+1. `webfetch` the Artificial Analysis Coding Agent Index
+   https://artificialanalysis.ai/agents/coding-agents. If the charts do not
+   render (the page is client-rendered), retry once via
+   https://artificialanalysis.ai/agents/coding-agents/comparisons.
+2. `webfetch` the llm-stats leaderboards for the role's axis:
+   https://llm-stats.com/leaderboards/best-ai-for-coding,
+   .../best-ai-for-tool-calling and .../best-ai-for-reasoning. Prefer the
+   per-benchmark columns over the composite score.
+3. Optional cross-check only: https://openrouter.ai/benchmarks. It now needs an
+   API key for programmatic access; never ask for or handle the key.
+4. If the scores are still not retrievable, ask the user to paste the relevant
+   rows (index, per-benchmark scores, cost per task) with the date.
+
+Rules:
+- A problem in an earlier step (truncated docs, denied shell, pricing
+  difficulty) never cancels this gate. Finish or report each gate separately.
+- Record per model: index name, score, source URL, retrieval date, and the
+  score gap and price ratio between the top candidates.
+- If retrieval fails after the steps above, put a prominent line at the top of
+  the response: `BENCHMARKS NOT VERIFIED for <model-id>: <what was tried and
+  the result>`. Mark the recommendation provisional, state "category claim
+  only, quality unverified", and ask the user to confirm or supply data.
+- Never write a `model:` field to disk, and never report model selection as
+  `COMPLETE`, while benchmarks are unverified. Use `PARTIAL` or `BLOCKED`.
+- Only benchmark scores count. Usage-share rankings (for example OpenRouter Top
+  Models, Leaderboard, Market Share, Programming, Domain, Context Length) are
+  never quality evidence (see Step 3).
+- Local Ollama tags: if no public benchmark exists, state that explicitly after
+  searching, and rely on the pilot gate instead.
+- Re-audits of existing agents also run this gate; do not approve a model on
+  the strength of its current configuration.
 
 ## Step 1 — Discover what is actually available (mandatory)
 
@@ -59,8 +143,8 @@ page, check the **Model retirement history** table before recommending anything.
 
 - A model can appear GA in the main table while already carrying a retirement date.
 - Retirement rows may carry footnotes that preserve access for a narrow group only
-  (for example, Claude Sonnet 4.6 retired 2026-09-01 but remains available to
-  individual subscribers on annual plans).
+  (illustrative, as of 2026-10-29: Claude Sonnet 4.6 retired 2026-09-01 but
+  remained available to individual subscribers on annual plans; re-verify).
 - Also check for models restricted by default: pre-GA models, open-weight models,
   and models outside GitHub's data-retention agreement are disabled by default.
 
@@ -113,6 +197,60 @@ passes) for the same role, and keep the senior engineer on a Copilot model.
 **Privacy:** local inference keeps prompts on the machine, but the secret
 baseline applies unchanged.
 
+## Step 1d — Copilot Fusion check (mandatory only when Fusion is considered)
+
+Copilot Fusion is a runtime router and orchestrator selected in the model picker,
+not a model. Per prompt it chooses an execution pattern (Single, Cascade,
+Critique), a reasoning effort, and the models that run it. Source:
+https://docs.github.com/en/enterprise-cloud@latest/copilot/concepts/models/copilot-fusion
+(read 2026-10-29; re-read on the check date, because patterns, effort tiers and
+the model pool change).
+
+1. **Runtime exposure.** Confirm the target runtime exposes Fusion. The docs list
+   GA in VS Code, Copilot CLI, the Copilot app and JetBrains, and do not mention
+   OpenCode. For OpenCode confirm the exact slug from `opencode models` output,
+   `opencode.json(c)`, or a working agent file; never infer it. If unconfirmed
+   report `FUSION NOT VERIFIED in <runtime>: <what was tried>` and use a pinned
+   model.
+2. **Plan and policy.** Ask the user for their plan and effort tier (Standard is
+   on all plans; High and Max are not on Free or Student) and whether org policy
+   restricts the model pool. Do not read credentials.
+3. **Pricing.** Fusion has no price of its own; each underlying model bills at its
+   standard rate, and High and Max can use more than one model. Apply the Pricing
+   gate to the underlying models and state "per-model rates; mix varies per
+   prompt". Paid plans receive a 30% discount on model costs through 2026-11-30;
+   report the expiry and that cost comparisons can flip afterwards.
+4. **Quality.** No benchmark exists for Fusion as a unit. Mark `Quality:
+   unverified` and apply the pilot gate; never reuse underlying-model scores as
+   Fusion's.
+5. **Known limits.** Fusion does not start subagents; discarded drafts can leave
+   workspace edits in place; its context window is the smallest among the models
+   it uses.
+
+**Role eligibility.** Candidate (Standard, High only where justified): explorer,
+triage, summariser, docs writer, PM, high-volume low-risk, and the junior
+engineer after user confirmation. Not by default: orchestrator, senior engineer,
+reviewer, security, or any agent with `edit` or `bash`. Always name a pinned
+Copilot fallback and never place Fusion on a role without one.
+
+**Pilot gate.** Compare with the best pinned alternative on first-pass success,
+cost per completed task, wall time, rework from discarded drafts, and tool-call
+errors. Fall back if cost is not lower, success is lower, or unexpected edits
+recur; re-run after the discount ends.
+
+Fusion output variant:
+
+```
+Recommended: github-copilot/<confirmed-fusion-slug>
+Availability: slug confirmed via <opencode models | config>; plan and policy confirmed by user
+Effort tier: Standard | High | Max
+Cost: per-model rates, no Fusion surcharge; 30% paid-plan discount until 2026-11-30
+Quality: unverified; pilot gate
+Pinned fallback: github-copilot/<model-id>
+Known risks: discarded drafts leave edits; per-prompt model variation
+Checked: <YYYY-MM-DD>
+```
+
 ## Step 2 — Pick the ranking axis
 
 | Agent role | Primary axis | Copilot-family preference |
@@ -145,15 +283,72 @@ Rule of thumb: use the **cheapest tier that reliably passes the job**, and
 reserve frontier models for work where a wrong answer is expensive
 (production code, security review, architecture).
 
-## Step 3 — Cross-check quality evidence
+## Step 3 — Cross-check quality evidence (mandatory; see Benchmark gate)
 
 Copilot does not publish its own benchmark ranking, so use external evidence for
-relative model quality, then intersect it with the Copilot catalogue:
+relative model quality, then intersect it with the Copilot catalogue.
 
-- https://openrouter.ai/rankings#benchmarks (coding index, intelligence, value)
-- Vendor model cards for context window and tool-calling support
+### Evidence stack (use in this order)
 
-Only models present in **both** sets are valid recommendations.
+1. **Eligibility and cost: Copilot catalogue, retirement table, GitHub
+   pricing** (Steps 1, 1b and the Pricing gate). These decide which models are
+   valid and what they cost. They are required regardless of any benchmark.
+2. **Primary quality evidence: Artificial Analysis Coding Agent Index**
+   https://artificialanalysis.ai/agents/coding-agents (and `/comparisons`).
+    Composite of the index's current benchmarks (as of 2026-10-29: FrontierCode
+    implementation, Terminal-Bench shell workflows and SWE-Atlas-QnA-AA
+    repository understanding; names and versions change, so read them from the
+    page). Use it for the
+   senior engineer, reviewer and orchestrator axes. Always read the
+   per-benchmark scores, not only the composite, and also record cost per task,
+   token usage and cache hit rate, wall time per task, safety-refusal rate and
+   reward-hacking rate. A model with a high refusal or fallback rate, or a high
+   reward-hacking rate, is a reliability risk for reviewer and security roles.
+3. **Cross-check: llm-stats leaderboards** — Tool Calling and Reasoning for the
+   orchestrator and tool-using roles, and Coding with the per-benchmark columns
+   (SWE-bench Verified, Terminal-Bench, SWE-Bench Pro, and similar). Do not rely
+   on its composite coding score alone: it is weighted heavily towards arena
+   votes on front-end, game and SVG generation, which says little about backend
+   work. The Tool Calling and Reasoning pages may expose only the top three
+   models, so they cannot rank lightweight or junior candidates; say so.
+   Ignore the generic capsule prose; use the numbers only.
+4. **Optional: OpenRouter Benchmarks** (https://openrouter.ai/benchmarks), now
+   API-key gated for programmatic access. Use only if the user supplies data;
+   never request or handle a key.
+5. **Supporting only:** vendor model cards for context window and tool-calling
+   support.
+
+**Never use as quality evidence:** usage or adoption rankings (OpenRouter Top
+Models, Leaderboard, Market Share, Programming, Domain, Context Length). They
+rank tokens or requests processed, not quality.
+
+Caveats to state in every recommendation:
+- Third-party prices are vendor API prices, not Copilot prices. Cost in the
+  output must come from the GitHub pricing page.
+- Artificial Analysis lists agent variants (model, harness and settings), not
+  bare models. A score through a vendor's own harness may not transfer to
+  OpenCode through Copilot.
+- Name each source's page update date. If a leaderboard page is more than a few
+  weeks old relative to the check date, say so.
+
+Rules:
+- Only models present in **both** the Copilot catalogue and the external data
+  are valid recommendations. External slugs differ from Copilot slugs; match by
+  model and confirm the Copilot slug from config.
+- Both Artificial Analysis and llm-stats are client-rendered in places, and
+  `webfetch` can return the page frame without chart values. If values do not
+  render, retry once via the comparisons page; then ask the user to paste the
+  rows, mark the evidence `EVIDENCE PARTIAL`, and keep the recommendation
+  provisional. Never fill missing numbers from memory.
+- Cite each source (Artificial Analysis, llm-stats, or OpenRouter) with the URL,
+  retrieval date and the index or benchmark name and score used.
+- When scores are within a few points, apply the price tie rule in Step 2.
+- Copilot catalogue and retirement (Step 1b) decide which models are eligible;
+  the benchmark data decides between them. Run the Benchmark gate even if Step 1
+  or 1b is incomplete; report each gate's outcome separately.
+- If no benchmark evidence is retrievable after the required attempt, do not
+  claim a quality tier; state "category claim only, quality unverified" and
+  raise `BENCHMARKS NOT VERIFIED`.
 
 ## Step 4 — Required output format
 
@@ -165,9 +360,20 @@ Cost: <$ input / cached input / output per 1M tokens, category, long-context
        threshold if any, promo expiry if any>
 Cheaper alternative: github-copilot/<model-id>
 Premium alternative: github-copilot/<model-id>
+Pricing source: <URL + date retrieved>; or `PRICING NOT VERIFIED: <reason>`
+Benchmarks: <index name: score per shortlisted model; gap between top
+            candidates; price ratio>
+Benchmark source: <URL + date retrieved>; or `BENCHMARKS NOT VERIFIED: <what
+                  was tried and the result>`
 Checked: <YYYY-MM-DD>
 Note: Copilot's catalogue changes; re-verify before locking this in.
 ```
+
+The `Cost`, `Pricing source`, `Benchmarks` and `Benchmark source` lines are
+mandatory. A recommendation without a retrieved price must carry the
+`PRICING NOT VERIFIED` alert. A recommendation without retrieved benchmark data
+must carry the `BENCHMARKS NOT VERIFIED` alert. Either alert makes the
+recommendation provisional.
 
 For an Ollama recommendation use this variant instead:
 
@@ -200,12 +406,13 @@ These hold across catalogue changes and must still be re-checked, not assumed:
 
 - The Copilot docs table lists model **display names**, not slugs. Confirm the
   exact slug against `opencode.json` or a working agent file before relying on it.
-- `claude-fable-5` has different data-retention terms — Anthropic retains prompts
+- `claude-fable-5` (as of 2026-10-29; re-verify) has different data-retention terms — Anthropic retains prompts
   and outputs to operate safety classifiers — and requires explicit org
   enablement. Flag this before recommending it for sensitive code.
 - Models marked *public preview* rather than GA should be avoided for production
   agents.
-- Billing is usage-based (per token, converted to AI credits) for current plans.
+- Billing is usage-based (per token, converted to AI credits) for current plans
+  (as of 2026-10-29; the switch from request-based billing was 2026-06-01).
   Premium-request multipliers are a legacy concept that applies only to Copilot
   Pro / Pro+ users who stayed on an annual request-based plan, and that table
   omits newer models. Use it only when the user confirms such a plan:

@@ -14,12 +14,13 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 | `skill-creator` | Create/improve skills to fill capability gaps |
 | `agent-audit` | Audit agents for quality, overlap, permissions |
 | `prompt-patterns` | Proven system-prompt structures |
-| `model-selection` | Best model via OpenRouter rankings |
+| `model-selection` | Best model: Copilot catalogue and pricing, then Artificial Analysis Coding Agent Index, cross-checked with llm-stats |
 | `agent-org-design` | Multi-agent team structures |
 | `find-skills-sh` | Discover skills from skills.sh |
 | `skill-security-audit` | Security-scan skills before adoption |
 | `opencode-agent-config` | Configure shared OpenCode settings and validate Markdown agents |
 | `agent-team-creation` | Coordinate project analysis through organisation design, agent and skill creation, audits, OpenCode configuration, and validation |
+| `software-knowledge` | Document software intent as a typed knowledge graph next to the code; optional for generated teams |
 
 ## Working rules
 
@@ -37,7 +38,8 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
   Gradle named-task allowlists with the `properties` task denied, and Maven
   deploy/release/effective-settings denied), and the redaction clause in
   every prompt. Never relax it. Verify with
-  `python3 scripts/check_secret_baseline.py <agents-dir>`.
+  `scripts/check_secret_baseline.py <agents-dir>`, run with the platform's
+  Python 3 (`py -3` on Windows, `python3` elsewhere; no venv needed).
 - One clear job per agent
 - Use `skill-creator` when a capability gap appears
 - Use `agent-team-creation` for end-to-end creation or restructuring of a runnable team
@@ -54,6 +56,11 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
   deprecation and `superseded_by` unless they are proven duplicates, compile and
   lint after deletion, and report every deleted path and rationale. Do not grant
   shell deletion commands merely to provide this capability.
+- Pruning (`software-knowledge` prune workflow): analyse with the read-only
+  `prune_knowledge.py`, plan with an essence ledger, obtain user approval, then
+  apply. Tombstone superseded decisions; never remove an `evolving` node without
+  explicit user confirmation. The orchestrator owns the plan; an installed
+  curator may execute it under orchestrator oversight.
 - Follow the gated lifecycle: analyse target project → design organisation →
   design each agent → resolve and audit skills → audit the complete team →
   create OpenCode configuration → validate runtime behaviour

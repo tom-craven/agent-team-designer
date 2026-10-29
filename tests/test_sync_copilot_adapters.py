@@ -40,6 +40,13 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
         self.assertEqual(sync.normalized_digest(lf), sync.normalized_digest(crlf))
         self.assertEqual(sync.normalized_digest(lf), sync.normalized_digest(cr))
 
+    def test_frontmatter_accepts_crlf_line_endings(self) -> None:
+        crlf = VALID_FRONTMATTER.replace("\n", "\r\n")
+
+        metadata = sync.parse_agent_frontmatter(crlf)
+
+        self.assertEqual([], sync.validate_agent_metadata(metadata))
+
     def test_valid_agent_metadata_passes(self) -> None:
         metadata = sync.parse_agent_frontmatter(VALID_FRONTMATTER)
 
@@ -188,7 +195,10 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
             target.write_text("do not overwrite\n")
             adapter = root / ".github" / "skills" / "agent-audit" / "SKILL.md"
             adapter.parent.mkdir(parents=True, exist_ok=True)
-            adapter.symlink_to(target)
+            try:
+                adapter.symlink_to(target)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable on this host: {error}")
 
             with patch.object(sync, "ROOT", root):
                 with self.assertRaisesRegex(ValueError, "symbolic link"):
@@ -210,7 +220,10 @@ class SyncCopilotAdaptersTest(unittest.TestCase):
             target.mkdir()
             github = root / ".github"
             github.mkdir()
-            (github / "skills").symlink_to(target, target_is_directory=True)
+            try:
+                (github / "skills").symlink_to(target, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable on this host: {error}")
 
             with patch.object(sync, "ROOT", root):
                 with self.assertRaisesRegex(ValueError, "symbolic link"):

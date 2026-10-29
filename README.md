@@ -62,7 +62,7 @@ copilot plugins list --kind skill --kind instruction
 copilot skill list
 ```
 
-The five Copilot skill manifests under `.github/skills/` are discovery adapters.
+The ten Copilot skill manifests under `.github/skills/` are discovery adapters.
 Their canonical content remains under `.opencode/skills/` so the two runtimes do
 not maintain independently edited copies.
 
@@ -81,7 +81,9 @@ corresponding Copilot discovery adapter. The thin adapters are never
 reverse-synchronized into the canonical skill.
 
 After changing any canonical skill used by Copilot, regenerate the discovery
-adapters:
+adapters. Commands below use `python3`; on Windows use `py -3` instead (bare
+`python`/`python3` may be the Microsoft Store alias). See
+[Development prerequisites](#development-prerequisites).
 
 ```bash
 python3 scripts/sync_copilot_adapters.py
@@ -101,9 +103,45 @@ python3 scripts/sync_copilot_adapters.py --check
 ```
 
 The `Copilot adapters` GitHub Actions workflow runs the same check for pull
-requests. It fails when generated skill adapters are stale, the OpenCode agent
-changes without review of its Copilot translation, or the Copilot profile no
-longer uses its read-only schema and tool set.
+requests, plus the adapter and secret-baseline tests and
+`check_secret_baseline.py .opencode/agents`. It fails when generated skill
+adapters are stale, the OpenCode agent
+changes without review of its Copilot translation, the Copilot profile no
+longer uses its read-only schema and tool set, or an agent loses the secret
+baseline.
+
+## Development prerequisites
+
+Maintaining this repository (not just using the agent) needs:
+
+- **Python 3.** Check with `py -3 --version` (Windows) or `python3 --version`.
+  The scripts under `scripts/` use only the standard library; no virtual
+  environment is needed for them.
+- **pytest**, used by `tests/test_check_secret_baseline.py`:
+
+  ```bash
+  # Windows
+  py -3 -m pip install pytest
+  # macOS / Linux
+  python3 -m pip install pytest
+  ```
+
+Run the checks and tests (Windows form shown; use `python3` elsewhere):
+
+```bash
+py -3 scripts/sync_copilot_adapters.py --check
+py -3 scripts/check_secret_baseline.py .opencode/agents
+py -3 -m unittest discover -s tests -p test_sync_copilot_adapters.py
+py -3 -m pytest tests/test_check_secret_baseline.py
+```
+
+On Windows, two adapter tests create symbolic links and fail with
+`WinError 1314` unless Developer Mode is on or the shell is elevated. They pass
+on Linux CI.
+
+Teams that the designer installs and that ship Python skills (for example
+`software-knowledge`) use their own `.venv` with PyYAML and pytest; that is
+separate from the requirements above.
 
 ## Runtime ownership
 
@@ -166,8 +204,11 @@ recommended starting point if you do not already have a provider configured.
 
 From the project directory, launch OpenCode:
 
-```powershell
-Set-Location E:\DEV\agentic-development\agent-team-designer
+```text
+# Windows (PowerShell)
+Set-Location <path-to-this-repository>
+# macOS / Linux / WSL
+cd <path-to-this-repository>
 opencode
 ```
 
@@ -176,8 +217,8 @@ and local skills automatically. The project default is
 `agent-team-designer`; you can also invoke it explicitly with
 `@agent-team-designer`.
 
-> If the repository is still stored in its legacy directory, replace the path
-> above with the directory containing this `README.md`.
+> Replace `<path-to-this-repository>` with the directory containing this
+> `README.md`.
 
 ### 4. Try the agent
 
@@ -197,21 +238,17 @@ For an overview of the project workflow and safety gates, read
 |---|---|
 | Name | `agent-team-designer` |
 | Mode | `primary` and project default |
-| Model | `github-copilot/gpt-5.6-sol` |
+| Model | `github-copilot/claude-sonnet-5.5` (the Copilot profile uses `gpt-5.6-sol`) |
 | Temperature | `0.3` |
-| Step budget | `40` |
+| Step budget | `60` |
 | Colour | `#ec4899` |
-| Edit access | `ask` |
-| Bash access | Denied by default; read-only Git and confirmed directory creation only |
+| Edit access | `ask`; `.opencode/reports/**` allowed; secret paths denied |
+| Bash access | Denied by default; named Git, OpenCode, Ollama, directory, script, and test commands only; secret-disclosure commands denied |
 | Delegation | Denied |
-| Skill access | Allowed |
+| Skill access | Allow-list of its ten skills; all others denied |
 
-Invoke it with `@agent-team-designer`, or start OpenCode in this directory:
-
-```powershell
-Set-Location E:\DEV\agentic-development\agent-team-designer
-opencode
-```
+Invoke it with `@agent-team-designer`, or start OpenCode in the repository
+directory (see "Start this project" above).
 
 ## Capabilities
 
@@ -311,6 +348,14 @@ Popularity and publisher reputation help shortlist candidates but do not prove
 security. Third-party skills require a security verdict before final
 recommendation or installation.
 
+Skills are referenced in place and never copied. Local `.opencode/skills` and
+`.github/skills` are added to `skills.paths` only when they exist. During
+installation the designer always asks whether to include additional skill
+repositories (for example your global skills or a shared team repository) and
+asks for their paths. Each path is confirmed back to you, you choose the skills,
+each is security-audited, and each is allowed individually in the agents' `skill`
+permissions. For `software-knowledge` it asks which folder holds the skill.
+
 ### 5. Audit the team
 
 The complete design is checked for:
@@ -359,7 +404,8 @@ Validation confirms:
 | `skill-security-audit` | Review skills for injection, malicious code, secrets, excessive access, and supply-chain risk |
 | `skill-creator` | Create or improve narrow reusable skills for confirmed gaps |
 | `agent-audit` | Audit individual agents and assembled teams before release |
-| `opencode-agent-config` | Define, migrate, audit, and validate runnable OpenCode agent configuration |
+| `opencode-agent-config` | Configure shared `opencode.json` settings and validate Markdown agents |
+| `software-knowledge` | Document software intent as a typed knowledge graph; includes a `prune` workflow (analyse, plan, approve, tombstone superseded decisions) to keep the tree small; optional for generated teams |
 
 ## Model-selection standard
 
@@ -372,13 +418,20 @@ Every model recommendation reports:
 - Recommended `github-copilot/<model-id>`.
 - Availability evidence.
 - The task-fit or ranking axis it wins on.
-- Current cost or request multiplier where applicable.
+- Current per-token cost from the GitHub pricing page (usage-based billing),
+  not premium-request multipliers.
 - A cheaper alternative.
 - A premium alternative.
 - The date checked.
 - Trade-offs and any runtime availability caveat.
 
-OpenRouter adoption rankings are treated as usage evidence, not proof of quality.
+Quality evidence comes from the Artificial Analysis Coding Agent Index, cross-checked
+with llm-stats. OpenRouter adoption rankings are treated as usage evidence, not
+proof of quality.
+
+Copilot Fusion is a router, not a model. It is considered only after the Fusion
+check in `model-selection` (runtime exposure, plan, pricing, unverified quality)
+and is not used by default for write-capable or high-risk roles.
 
 ## Workflow examples
 
@@ -524,29 +577,36 @@ agent-team-designer/
 ├── .github/
 │   ├── agents/
 │   │   └── agent-team-designer.agent.md
-│   ├── skills/
-│   │   ├── agent-audit/
-│   │   ├── agent-org-design/
-│   │   ├── model-selection/
-│   │   ├── prompt-patterns/
-│   │   └── skill-security-audit/
+│   ├── skills/                  # generated adapters for the ten skills below
+│   ├── workflows/
+│   │   └── copilot-adapters.yml
 │   └── copilot-instructions.md
 ├── AGENTS.md
 ├── README.md
 ├── opencode.json
+├── docs/                        # demos, presentations, proposals
 ├── scripts/
-│   └── sync_copilot_adapters.py
+│   ├── sync_copilot_adapters.py
+│   └── check_secret_baseline.py
+├── tests/
+│   ├── test_sync_copilot_adapters.py
+│   └── test_check_secret_baseline.py
 └── .opencode/
     ├── agents/
     │   └── agent-team-designer.md
+    ├── reports/                 # doom-loop escalation reports
     └── skills/
-        ├── agent-team-creation/
-        ├── agent-org-design/
-        ├── prompt-patterns/
-        ├── model-selection/
-        ├── find-skills-sh/
-        ├── skill-security-audit/
-        ├── skill-creator/
         ├── agent-audit/
-        └── opencode-agent-config/
+        ├── agent-org-design/
+        ├── agent-team-creation/
+        ├── find-skills-sh/
+        ├── model-selection/
+        ├── opencode-agent-config/
+        ├── prompt-patterns/
+        ├── skill-creator/
+        ├── skill-security-audit/
+        └── software-knowledge/
 ```
+
+The `.opencode/skills/` folder may also hold other skills that are not part of
+the designer's allow-list.

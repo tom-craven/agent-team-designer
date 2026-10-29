@@ -21,17 +21,21 @@ CANONICAL_SKILLS = (
     "agent-audit",
     "agent-org-design",
     "agent-team-creation",
+    "find-skills-sh",
     "model-selection",
+    "opencode-agent-config",
     "prompt-patterns",
+    "skill-creator",
     "skill-security-audit",
+    "software-knowledge",
 )
 
 
 def frontmatter(text: str, path: Path) -> str:
-    match = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+    match = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.DOTALL)
     if not match:
         raise ValueError(f"{path} has no valid YAML frontmatter")
-    return match.group(1)
+    return match.group(1).replace("\r\n", "\n")
 
 
 def scalar(frontmatter_text: str, key: str) -> str:
@@ -124,7 +128,7 @@ def generate_adapters() -> None:
     for relative_path, content in adapters.items():
         path = ROOT / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        path.write_text(content, encoding="utf-8", newline="\n")
         print(f"generated {relative_path}")
 
 
@@ -136,7 +140,9 @@ def accept_agent_source() -> None:
     if not SOURCE_MARKER.search(text):
         raise ValueError(f"{COPILOT_AGENT} has no canonical source marker")
     path.write_text(
-        SOURCE_MARKER.sub(replacement, text, count=1), encoding="utf-8"
+        SOURCE_MARKER.sub(replacement, text, count=1),
+        encoding="utf-8",
+        newline="\n",
     )
     print(f"accepted {SOURCE_AGENT} for {COPILOT_AGENT}")
 

@@ -1,8 +1,8 @@
 ---
 name: software-knowledge
-description: Document software intent as a typed knowledge graph next to the code — capabilities, flows, patterns, decisions, invariants, contracts, and type context. Use when adding class context files, AGENTS.md maps, ADRs, bounded-context docs, architecture knowledge, compiling knowledge/graph.yaml, scaffolding knowledge/, before editing a public type so invariants and decisions load first, and after any accepted change to harvest flows, patterns, and capabilities that would otherwise be buried in decisions.
+description: Document software intent as a typed knowledge graph next to the code — capabilities, flows, patterns, decisions, invariants, contracts, and type context. Use when adding class context files, AGENTS.md maps, ADRs, bounded-context docs, architecture knowledge, compiling knowledge/graph.yaml, scaffolding knowledge/, before editing a public type so invariants and decisions load first, after any accepted change to harvest flows, patterns, and capabilities that would otherwise be buried in decisions, and when asked to prune, merge, condense, or shrink the knowledge tree (superseded decisions, duplicates, stale or oversized nodes).
 metadata:
-  version: "1.2"
+  version: "1.3"
   type: workflow
 ---
 
@@ -250,9 +250,47 @@ The linter also reports `coverage:` findings — knowledge captured under the wr
 | Dependency direction changes | Update edges and `ARCHITECTURE.md` |
 | Invariant changes | Update the invariant node; keep type files as pointers |
 | Type removed | `status: deprecated` plus `superseded_by`; do not delete history |
+| Tree has grown large or carries superseded, duplicate, or stale nodes | Run the prune workflow (analyse, plan, approve, apply) |
 | Unsure of a constraint | `status: evolving` and an open question — never a confident guess |
 | New or changed operation / endpoint | Create or link its `capability` |
 | Decision written | Run the harvest workflow before completion |
+
+### Prune the knowledge tree
+
+Shrink the tree without losing its essence. Read `references/pruning.md` first.
+Run only when asked, or when lint, review, or size shows the tree has outgrown
+its value. Always analyse, plan, get approval, then apply.
+
+```bash
+python <this-skill>/scripts/prune_knowledge.py .            # read-only analysis
+python <this-skill>/scripts/prune_knowledge.py . --json     # machine-readable
+```
+
+1. **Analyse.** Run the analyser (stale threshold 90 days, oversized 120 lines).
+   It never writes. It reports superseded, duplicate, dead, orphan, stale, and
+   oversized candidates with the lines each would save.
+2. **Plan.** Propose operations (`tombstone`, `merge`, `refine`, `link`, `ask`)
+   with evidence and an **essence ledger**: every claim in each source node mapped
+   to the node ID that will carry it. A claim with no destination blocks that
+   operation.
+3. **Approve.** Present the plan to the user. Nothing is applied without approval,
+   including exact duplicates.
+4. **Apply.** Superseded nodes are **tombstoned**, not deleted: fold the rationale
+   into the successor's `## History`, redirect inbound edges, and shrink the old
+   node to a stub that keeps its ID, `status: deprecated`, and `superseded_by`.
+   Delete only exact duplicates and nodes the user confirmed as dead.
+5. **Never remove an `evolving` node without the user's explicit confirmation**,
+   however stale. Present each with its age and content and let the user keep,
+   refresh, resolve, or remove it.
+6. **Verify.** Compile, lint with `--strict`, re-run the analyser, and report
+   before and after node count and size, every path changed or deleted, every
+   edge redirected, and anything left unapplied.
+
+The knowledge owner (the orchestrator by default) owns the plan and its approval.
+A curator, if installed, may run the analysis and apply the approved plan; the
+orchestrator keeps oversight and reviews the report. Never prune `invariant`
+nodes, `active` decisions that still constrain code, or type nodes whose `source`
+still exists, except as exact duplicates.
 
 ### Remove stale, duplicate, or superseded artefacts
 
@@ -265,8 +303,9 @@ stale, an exact duplicate, or superseded with no historical value.
 2. Search IDs, inbound references, and typed edges before deletion.
 3. Redirect or remove affected edges while preserving still-valid intent.
 4. Keep historical decisions as `status: deprecated` with `superseded_by`;
-   supersession alone is not grounds for deletion. Delete one only when it is a
-   proven duplicate.
+   supersession alone is not grounds for deletion. Condense them to a tombstone
+   through the prune workflow instead. Delete one only when it is a proven
+   duplicate.
 5. Delete only within `knowledge/**` through scoped file-edit tooling.
 6. Compile and lint the graph, then report each deleted path, its evidence, and
    all replacement or edge changes.

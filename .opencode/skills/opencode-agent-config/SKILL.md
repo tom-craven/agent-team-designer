@@ -1,6 +1,6 @@
 ---
 name: opencode-agent-config
-description: Define, audit, and migrate OpenCode agents in opencode.json, including modes, prompts, models, steps, permissions, task delegation, visibility, and stuck-agent recovery. Use whenever configuring agents in JSON rather than Markdown files or diagnosing agent execution limits and permission deadlocks.
+description: Configure shared OpenCode settings (opencode.json instructions, skill paths, providers, MCP, defaults) and validate or audit Markdown agents under .opencode/agents/, including modes, models, steps, permissions, task delegation, and stuck-agent recovery. Also migrates legacy JSON agents to Markdown. Use when creating or changing opencode.json for a team, auditing agent runtime behaviour, or diagnosing step limits and permission deadlocks.
 ---
 
 # OpenCode Agent Configuration
@@ -51,8 +51,6 @@ skill path, and delegation target exists or is intentionally documented as
 missing. It must also verify that the resulting configuration does not expose
 secrets or unrelated private directories.
 
-## Configuration shape
-
 ## Mandatory single source of truth
 
 For every team created or modified by `agent-team-designer`:
@@ -71,6 +69,8 @@ For every team created or modified by `agent-team-designer`:
 
 The JSON agent shape below is reference material for auditing legacy
 configurations only; do not use it when creating a team.
+
+### Legacy JSON agent shape (audit reference only)
 
 Agents are configured under the top-level `agent` object. The agent key becomes
 the agent name.

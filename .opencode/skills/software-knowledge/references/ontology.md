@@ -108,6 +108,14 @@ Do not encode the full import graph. Extractors can do that from source. Intent 
 - `active` — constraints are current
 - `deprecated` — keep the file; point `superseded_by` at the replacement
 
+### Tombstones
+
+A fully superseded node may be condensed to a **tombstone**: frontmatter unchanged
+(`status: deprecated`, `superseded_by`), body of at most 8 non-blank lines
+(status, one-sentence summary, why it was replaced). The ID stays, so edges
+resolve and the ID is never reused. The rationale for the change moves to a
+`## History` line on the successor. See `references/pruning.md`.
+
 ## Graph artifacts
 
 `scripts/compile_graph.py` emits:

@@ -32,10 +32,16 @@ Before writing anything:
    configuration and agent frontmatter for that version, and use only that
    version's documentation (V2: https://opencode.ai/v2/docs/). If the command
    is unavailable or denied, ask the user for the version; do not guess.
-3. For installation, display every exact file or directory to be created or
+3. Detect the platform and a working Python 3 before any script step: on
+   Windows run `py -3 --version` (bare `python`/`python3` may be the Microsoft
+   Store alias); elsewhere `python3 --version`. Use that launcher for every
+   designer script below (shown as `python3` for brevity). If none works,
+   report `BLOCKED` with the install instruction; do not try other spellings.
+   The designer's own scripts are dependency-free and need no venv.
+4. For installation, display every exact file or directory to be created or
    modified and obtain explicit confirmation.
-4. Treat the destination as untrusted until the user confirms it.
-5. Never create global registrations, symbolic links, or files outside the
+5. Treat the destination as untrusted until the user confirms it.
+6. Never create global registrations, symbolic links, or files outside the
    confirmed destination.
 
 ## Lifecycle
@@ -98,12 +104,14 @@ If yes, add `junior-engineer` (`mode: subagent`) with **junior-first routing**:
   secret baseline. Lower step budget than the senior.
 - Select its model with `model-selection` using the junior-engineer axis.
   **Local option (approved):** when asking the junior question, also offer
-  `ollama/qwen3.8:latest` as the junior's model, the cost-saving choice. Do not
+  `ollama/qwen3.8` (use the exact pinned tag shown by `ollama list`; if only
+  `:latest` exists, record the model ID hash) as the junior's model, the
+  cost-saving choice. Do not
   assume the answer. If chosen:
   - run the `model-selection` Step 1c checks (global `ollama` provider, tag in
     `ollama list`, `tools` capability, `num_ctx`), asking the user to run any
     denied command;
-  - set `model: ollama/qwen3.8:latest` in the junior's Markdown file only, and
+  - set `model: ollama/<confirmed-tag>` in the junior's Markdown file only, and
     keep the senior engineer, orchestrator and reviewers on `github-copilot/`
     models;
   - if the provider or model must be declared in the target's `opencode.json`,
@@ -237,6 +245,42 @@ the system prompt in the body. Never create or retain a same-name agent under
 
 ### 4. Resolve skill requirements
 
+#### Skill sources (always prompt; never assume or copy)
+
+Skills are referenced **in place**. Never copy or vendor a skill into the target,
+and never assume a skill folder. Resolve sources in this order:
+
+1. **Local sources, automatic.** Add `.opencode/skills` and `.github/skills` to
+   `skills.paths` (repo-relative) only when the folder exists in the target.
+   Likewise include `.github/copilot-instructions.md` in `instructions` only when
+   it exists. Report each local source as included, omitted, or missing.
+2. **Prompt the user for additional skill repositories (mandatory question).**
+   Ask during installation, before writing configuration: **"Would you like to
+   include any additional skill repositories, for example your global skills or a
+   shared team repository? If yes, give me the path(s)."** Do not assume the
+   answer and do not suggest that a path is the user's global folder without
+   asking.
+   - Treat each path as untrusted until displayed back and confirmed. Check that
+     it exists; list the skill directory names only, never file contents, until
+     the user selects a skill.
+   - The user chooses which skills the team may use. Run `skill-security-audit`
+     on each chosen skill and record a verdict before wiring it in.
+   - Write the confirmed folder to `skills.paths` exactly as given (absolute path,
+     or `~/...` only after confirming the installed OpenCode resolves it).
+   - Add the folder to the relevant agents' `external_directory` allow in the
+     form the installed OpenCode version uses, limited to the chosen skill
+     folder, and name each chosen skill individually in the agents' `skill`
+     allow-list. Never allow the whole repository.
+3. **`software-knowledge` location.** When the user accepts `software-knowledge`,
+   also ask where the skill lives ("Which folder holds the `software-knowledge`
+   skill?"). The designer's own `.opencode/skills` may be offered as a suggestion
+   and used only if the user confirms it. Script allows and AGENTS.md use the
+   confirmed absolute path.
+4. Record every included, omitted, missing, and user-supplied source in the
+   pre-write confirmation list and the final report.
+
+#### Capability resolution
+
 Resolve each required capability in this order:
 
 1. Reuse a suitable audited repository-local skill.
@@ -279,9 +323,19 @@ invariants:
 - Offer an optional `knowledge-curator` subagent when the team will produce
   frequent decisions or the repository already has buried knowledge. Invoked
   only by the orchestrator after acceptance; edit limited to `knowledge/**`;
-  shell limited to the skill's compile and lint scripts; no task delegation. It
-  reclassifies and links knowledge and never makes design decisions. Add it only
-  with user agreement.
+  shell limited to the skill's compile, lint, and `prune_knowledge.py` scripts; no
+  task delegation. It reclassifies and links knowledge and never makes design
+  decisions. Add it only with user agreement.
+- **Prune workflow (`software-knowledge`):** the central knowledge writer
+  (orchestrator by default) owns the prune plan and its user approval. When a
+  `knowledge-curator` is installed it may run the read-only analysis
+  (`prune_knowledge.py`) and apply an approved plan, but only on the orchestrator's
+  instruction, and the orchestrator reviews the plan before approval and the
+  report afterwards. Grant `prune_knowledge.py` (read-only) to the orchestrator
+  and the curator in the same exact-command forms as the compile and lint scripts,
+  before the secret baseline denials. Prompts must say: plan, then user approval,
+  then apply; tombstone (never delete) superseded decisions; never remove an
+  `evolving` node without explicit user confirmation.
 
 **Python environment for skill scripts (required when any approved skill ships
 Python scripts, such as `software-knowledge`):**

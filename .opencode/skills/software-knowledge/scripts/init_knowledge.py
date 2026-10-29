@@ -69,7 +69,7 @@ def main() -> int:
 
     keepme = (
         "# Generated catalogs live here.\n"
-        "# Run scripts/compile_graph.py after adding nodes.\n"
+        "# Run the skill's compile_graph.py from the repository root after adding nodes.\n"
     )
     print(write_text_if_absent(root / "knowledge" / "README.md", keepme))
     print(
@@ -85,12 +85,9 @@ def main() -> int:
         )
     )
 
-    scripts_dir = root / "scripts"
-    scripts_dir.mkdir(exist_ok=True)
-    for name in ("compile_graph.py", "lint_knowledge.py"):
-        print(write_if_absent(scripts_dir / name, SKILL_ROOT / "scripts" / name))
-
-    print("done. fill knowledge/system.md and AGENTS.md next.")
+    # The skill's own scripts are run in place (compile_graph.py, lint_knowledge.py,
+    # prune_knowledge.py). Copying them into the target would create stale duplicates.
+    print("done. fill knowledge/system.md and ARCHITECTURE.md next.")
     return 0
 
 

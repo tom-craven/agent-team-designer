@@ -18,3 +18,9 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_sync_copilot_adapters.py'
       - name: Check Copilot adapters
         run: python3 scripts/sync_copilot_adapters.py --check
+      - name: Test secret baseline checker
+        run: |
+          python3 -m pip install pytest
+          python3 -m pytest tests/test_check_secret_baseline.py
+      - name: Check agents carry the secret baseline
+        run: python3 scripts/check_secret_baseline.py .opencode/agents
