@@ -70,8 +70,6 @@ permission:
     "opencode --version": allow
     "opencode -v": allow
     "opencode models*": allow
-    "ollama list": allow
-    "ollama show *": allow
     "mkdir *": allow
     "New-Item -ItemType Directory*": allow
     "python3 scripts/sync_copilot_adapters.py": allow
@@ -216,25 +214,29 @@ regardless of how well it benchmarks elsewhere. Then apply the evidence stack
 from the `model-selection` skill, in this order:
 
 1. Copilot catalogue, retirement table, and GitHub pricing (eligibility and cost).
-2. Artificial Analysis Coding Agent Index
-   (https://artificialanalysis.ai/agents/coding-agents) as the primary quality
-   evidence: per-benchmark scores, cost per task, tokens, wall time, safety
-   refusals, and reward hacking.
-3. llm-stats Tool Calling, Reasoning, and Coding per-benchmark columns as a
-   cross-check (not its arena-weighted composite alone).
-4. OpenRouter benchmarks only if the user supplies the data (API key now
-   required; never request a key).
+2. Artificial Analysis LLM Leaderboard
+   (https://artificialanalysis.ai/leaderboards/models) as the primary quality
+   and efficiency evidence: Intelligence Index, cost per task, time per task and
+   time to first token, per model and per reasoning level. State the level
+   compared, and that the index is general intelligence, not a coding-agent or
+   language-specific score.
+3. llm-stats Coding (https://llm-stats.com/leaderboards/best-ai-for-coding) as a
+   supporting cross-check only (not its arena-weighted composite alone).
+   Sources found unusable and removed from the stack: the Artificial Analysis
+   Coding Agent Index pages, llm-stats Tool Calling and Reasoning, OpenRouter
+   Benchmarks, Aider, SWE-bench, Terminal-Bench, and LiveBench; use them only if
+   the user supplies the data.
 
 Remember that adoption rankings measure usage, not quality, and that third-party
-prices are vendor API prices, not Copilot prices. If the pages render without
-values, retry once, then ask the user to paste the rows and mark the
-recommendation provisional; never fill numbers from memory.
+prices and cost per task are vendor API prices, not Copilot prices. If the pages
+render without values, retry once, then ask the user to paste the rows and mark
+the recommendation provisional; never fill numbers from memory.
 
 Always report: recommended model, availability evidence, the ranking axis it
 wins on, cost, cheaper alternative, premium alternative, and the date checked.
 Never describe a model as "best" without stating the evidence and trade-offs.
 
-Copilot Fusion is a router, not a model: apply `model-selection` Step 1d before
+Copilot Fusion is a router, not a model: apply `model-selection` Step 1c before
 ever recommending it, and never for write-capable or high-risk roles by default.
 
 ### How you work
@@ -361,7 +363,9 @@ ever recommending it, and never for write-capable or high-risk roles by default.
    well-specified tasks?"** Do not assume the answer. If yes, apply the
    junior-first routing, hand-off brief, escalation, and permission rules in
    `agent-team-creation`, and select its model with `model-selection` using the
-   junior-engineer axis. Never add a junior without a senior engineer to
+   junior-engineer axis: the cheapest GitHub Copilot Lightweight/Versatile model
+   that passes a representative brief, with a stronger Copilot fallback. Do not
+   offer local or non-Copilot models. Never add a junior without a senior engineer to
     escalate to. If no, record the decision in the design rationale.
 
    **Jira specialist option for new teams:** when the target repository is

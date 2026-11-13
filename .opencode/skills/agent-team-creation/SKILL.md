@@ -102,25 +102,16 @@ If yes, add `junior-engineer` (`mode: subagent`) with **junior-first routing**:
   config writes unless the team grants `software-knowledge` to it; shell
   limited to the named test/lint/build commands; `task: "*": deny`; full
   secret baseline. Lower step budget than the senior.
-- Select its model with `model-selection` using the junior-engineer axis.
-  **Local option (approved):** when asking the junior question, also offer
-  `ollama/qwen3.8` (use the exact pinned tag shown by `ollama list`; if only
-  `:latest` exists, record the model ID hash) as the junior's model, the
-  cost-saving choice. Do not
-  assume the answer. If chosen:
-  - run the `model-selection` Step 1c checks (global `ollama` provider, tag in
-    `ollama list`, `tools` capability, `num_ctx`), asking the user to run any
-    denied command;
-  - set `model: ollama/<confirmed-tag>` in the junior's Markdown file only, and
-    keep the senior engineer, orchestrator and reviewers on `github-copilot/`
-    models;
-  - if the provider or model must be declared in the target's `opencode.json`,
-    list that shared-settings change in the pre-write confirmation (never an
-    `agent` entry), and prefer reusing the user's global provider;
-  - record the Copilot fallback model and the pilot gate (escalation rate
-    above ~25–30% or recurring tool-call errors means switch the junior back
-    to the fallback);
-  - cap the junior's step budget lower still, since local models loop more.
+- Select its model with `model-selection` using the junior-engineer axis: the
+  cheapest GitHub Copilot Lightweight/Versatile model that passes a
+  representative brief, at the lowest reasoning level. Record the price, the
+  cost-per-task evidence, and a slightly stronger Copilot fallback. Do not offer
+  local or non-Copilot models. Keep the senior engineer, orchestrator and
+  reviewers on stronger Copilot models.
+- Pilot gate: track first-pass success, escalation rate, and tool-call errors.
+  An escalation rate above ~25–30% or recurring tool-call errors means move the
+  junior to the fallback model or tighten the routing checklist.
+- Cap the junior's step budget below the senior's.
 - Never add a junior tier without a senior engineer to escalate to.
 - Report the cost assumption, and tell the user to watch the escalation
   rate: above ~25–30% means the routing checklist is too loose.
@@ -486,9 +477,8 @@ Do not advance when a gate fails:
 ## Never do
 
 - Create a generic god-agent instead of separating genuinely distinct jobs.
-- Choose models before confirming GitHub Copilot catalogue availability (the
-  only exception is an approved `ollama/<tag>` junior model verified per
-  `model-selection` Step 1c).
+- Choose models before confirming GitHub Copilot catalogue availability, or use
+  any non-Copilot provider model.
 - Create a skill before checking existing local, global, and skills.sh options.
 - Recommend or install an unaudited third-party skill.
 - Treat agent Markdown as a runnable team without configuring and validating

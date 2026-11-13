@@ -1,4 +1,4 @@
-# AGENTS.md
+I want # AGENTS.md
 
 This project is dedicated to the **Agent Team Designer** agent.
 
@@ -14,7 +14,7 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 | `skill-creator` | Create/improve skills to fill capability gaps |
 | `agent-audit` | Audit agents for quality, overlap, permissions |
 | `prompt-patterns` | Proven system-prompt structures |
-| `model-selection` | Best model: Copilot catalogue and pricing, then Artificial Analysis Coding Agent Index, cross-checked with llm-stats |
+| `model-selection` | Best model: Copilot catalogue and pricing, then Artificial Analysis LLM Leaderboard (Intelligence Index and cost per task), with llm-stats Coding as a supporting cross-check |
 | `agent-org-design` | Multi-agent team structures |
 | `find-skills-sh` | Discover skills from skills.sh |
 | `skill-security-audit` | Security-scan skills before adoption |

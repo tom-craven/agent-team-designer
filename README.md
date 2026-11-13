@@ -243,7 +243,7 @@ For an overview of the project workflow and safety gates, read
 | Step budget | `60` |
 | Colour | `#ec4899` |
 | Edit access | `ask`; `.opencode/reports/**` allowed; secret paths denied |
-| Bash access | Denied by default; named Git, OpenCode, Ollama, directory, script, and test commands only; secret-disclosure commands denied |
+| Bash access | Denied by default; named Git, OpenCode, directory, script, and test commands only; secret-disclosure commands denied |
 | Delegation | Denied |
 | Skill access | Allow-list of its ten skills; all others denied |
 
@@ -425,9 +425,11 @@ Every model recommendation reports:
 - The date checked.
 - Trade-offs and any runtime availability caveat.
 
-Quality evidence comes from the Artificial Analysis Coding Agent Index, cross-checked
-with llm-stats. OpenRouter adoption rankings are treated as usage evidence, not
-proof of quality.
+Quality evidence comes from the Artificial Analysis LLM Leaderboard (Intelligence
+Index and cost per task, per reasoning level), with llm-stats Coding as a
+supporting cross-check. The index is general intelligence, not a coding-agent
+score. OpenRouter adoption rankings are treated as usage evidence, not proof of
+quality.
 
 Copilot Fusion is a router, not a model. It is considered only after the Fusion
 check in `model-selection` (runtime exposure, plan, pricing, unverified quality)

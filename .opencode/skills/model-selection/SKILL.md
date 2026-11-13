@@ -15,15 +15,12 @@ github-copilot/<model-id>
 A model that is not enabled in the Copilot integration is **not selectable**, no
 matter how well it benchmarks elsewhere.
 
-**One sanctioned exception: local Ollama models** (`ollama/<tag>`), governed by
-the "Local Ollama models" section below. The user has enabled the Ollama provider
-in their global OpenCode configuration and approved it for the roles listed
-there. No other non-Copilot provider is approved.
+No other provider is approved. Do not recommend local or third-party provider
+models; the cheapest suitable Copilot model is the cost-saving option.
 
 ## Never do
 - Recommend a model that is not confirmed available in the Copilot catalogue
-  (except an approved `ollama/<tag>` under the Local Ollama rules)
-- Write a bare model ID without a provider prefix (`github-copilot/` or `ollama/`)
+- Write a bare model ID without the `github-copilot/` provider prefix
 - Pick a model without naming the ranking axis it wins on
 - Assume the catalogue is static — Copilot adds and retires models frequently
 - Recommend any model without first retrieving its pricing (see Pricing gate);
@@ -38,7 +35,7 @@ there. No other non-Copilot provider is approved.
   retrievable
 - Ignore per-token price when a near-equal cheaper model exists
 - Treat Copilot Fusion as a model with a benchmark score, invent a Fusion slug,
-  or assume it is available in OpenCode because it is in Copilot CLI (Step 1d)
+  or assume it is available in OpenCode because it is in Copilot CLI (Step 1c)
 - Recommend Fusion for an agent with `edit` or `bash` allowed, or for the
   orchestrator, senior engineer, reviewer or security roles, without an explicit
   user-accepted override
@@ -83,18 +80,17 @@ the outcome. The attempt itself is not optional, even when the choice looks
 obvious, the repository is small, or the catalogue/pricing steps hit problems.
 
 Required attempt, in order (see "Evidence stack" in Step 3):
-1. `webfetch` the Artificial Analysis Coding Agent Index
-   https://artificialanalysis.ai/agents/coding-agents. If the charts do not
-   render (the page is client-rendered), retry once via
-   https://artificialanalysis.ai/agents/coding-agents/comparisons.
-2. `webfetch` the llm-stats leaderboards for the role's axis:
-   https://llm-stats.com/leaderboards/best-ai-for-coding,
-   .../best-ai-for-tool-calling and .../best-ai-for-reasoning. Prefer the
-   per-benchmark columns over the composite score.
-3. Optional cross-check only: https://openrouter.ai/benchmarks. It now needs an
-   API key for programmatic access; never ask for or handle the key.
-4. If the scores are still not retrievable, ask the user to paste the relevant
-   rows (index, per-benchmark scores, cost per task) with the date.
+1. `webfetch` the Artificial Analysis LLM Leaderboard
+   https://artificialanalysis.ai/leaderboards/models . It renders a full table
+   (Intelligence Index, cost per task, time per task, time to first answer
+   token, context window) for each model at each reasoning level. If the saved
+   output is truncated, read it with Read/Grep until each shortlisted model's
+   rows are found; retry the fetch at most once.
+2. Optional cross-check: `webfetch` the llm-stats coding leaderboard
+   https://llm-stats.com/leaderboards/best-ai-for-coding . Its composite is
+   arena-weighted (see Step 3), so treat it as supporting only.
+3. If the scores are still not retrievable, ask the user to paste the relevant
+   rows (index, cost per task, reasoning level) with the date.
 
 Rules:
 - A problem in an earlier step (truncated docs, denied shell, pricing
@@ -110,8 +106,12 @@ Rules:
 - Only benchmark scores count. Usage-share rankings (for example OpenRouter Top
   Models, Leaderboard, Market Share, Programming, Domain, Context Length) are
   never quality evidence (see Step 3).
-- Local Ollama tags: if no public benchmark exists, state that explicitly after
-  searching, and rely on the pilot gate instead.
+- Sources found unusable on 2026-11-13 and removed from the stack: the
+  Artificial Analysis Coding Agent Index pages (no per-model values rendered),
+  the llm-stats Tool Calling and Reasoning pages (top three models only),
+  OpenRouter Benchmarks (API key required), the Aider polyglot leaderboard
+  (no current models), and SWE-bench, Terminal-Bench and LiveBench (rows not
+  retrievable by `webfetch`). Use them only if the user pastes their data.
 - Re-audits of existing agents also run this gate; do not approve a model on
   the strength of its current configuration.
 
@@ -155,49 +155,7 @@ has confirmed in this conversation that a documented exemption applies to them.
 When auditing existing agents, check their configured models against this table
 too. A model that was valid when the agent was written may have been retired since.
 
-## Step 1c — Local Ollama models (approved exception)
-
-Model IDs take the form `ollama/<tag>` where `<tag>` is exactly the name shown by
-`ollama list` (for example `ollama/qwen3.8:latest`). Pinned tags are preferred
-over `:latest`; if `:latest` is used, record the model ID hash so a silent
-re-pull is detectable.
-
-**Approved roles:** `junior-engineer` (default, user-approved with
-`ollama/qwen3.8`). Other low-risk roles (explorer, summariser, docs writer) may
-use an Ollama model only after the user confirms it in this conversation.
-**Never** use an Ollama model for the orchestrator, senior engineer, reviewer, or
-any security role unless the user explicitly overrides this after being shown the
-tool-calling and context risks.
-
-**Availability evidence (replaces catalogue checks for these IDs):**
-1. The user's global OpenCode config enables the `ollama` provider. Confirm from
-   the user, or from `~/.config/opencode/opencode.json(c)` `provider.ollama`
-   without reading any credential-bearing field.
-2. The tag appears in `ollama list` output supplied by the user. If the shell is
-   denied, ask the user to run it. Never guess a tag.
-3. `ollama show <tag>` reports `tools` under capabilities. No tool support means
-   the model is invalid for any agent using `edit`, `bash`, or `task`.
-4. The provider config declares the model with a context limit and
-   `num_ctx` raised above Ollama's small default, sized to fit available VRAM.
-   Without it prompts truncate silently.
-
-**Cost:** there is no per-token price. Report it as hardware and time cost
-(GPU/VRAM or RAM, tokens per second) and judge the saving by the measured
-escalation rate, not by assumption.
-
-**Quality evidence:** external rankings may not cover a local tag. Do not invent
-benchmark numbers. State that quality is unverified and apply the pilot gate:
-track first-pass success, escalation rate, and tool-call errors; if escalation
-exceeds about 25–30% or tool-call errors recur, fall back to the Copilot
-alternative.
-
-**Always name a Copilot fallback** (cheapest Lightweight/Versatile model that
-passes) for the same role, and keep the senior engineer on a Copilot model.
-
-**Privacy:** local inference keeps prompts on the machine, but the secret
-baseline applies unchanged.
-
-## Step 1d — Copilot Fusion check (mandatory only when Fusion is considered)
+## Step 1c — Copilot Fusion check (mandatory only when Fusion is considered)
 
 Copilot Fusion is a runtime router and orchestrator selected in the model picker,
 not a model. Per prompt it chooses an execution pattern (Single, Cascade,
@@ -255,17 +213,21 @@ Checked: <YYYY-MM-DD>
 
 | Agent role | Primary axis | Copilot-family preference |
 |------------|--------------|---------------------------|
-| Senior engineer / coding | Coding benchmark (SWE-bench class) | Frontier Claude / GPT reasoning tier |
-| Orchestrator / planner | Reasoning + instruction following | Frontier reasoning tier |
-| Reviewer / security | Coding + careful reasoning | Frontier tier, low temperature |
+| Senior engineer / coding | Intelligence Index per cost per task (llm-stats coding cross-check) | Frontier Claude / GPT reasoning tier |
+| Orchestrator / planner | Intelligence Index + instruction following | Frontier reasoning tier |
+| Reviewer / security | Intelligence Index + careful reasoning | Frontier tier, low temperature |
 | PM / writer / docs | General intelligence + long context | Mid tier is usually sufficient |
 | Explorer / search / triage | Speed + low per-token price | Lightweight-category model |
 | High-volume, low-risk tasks | Input + output price per 1M tokens | Cheapest model that passes |
-| Junior engineer (simple, briefed tasks) | Per-token price + instruction following + tool-call reliability | Cheapest Lightweight/Versatile model that passes a representative brief; low or no reasoning effort. **Local option:** `ollama/qwen3.8` when Step 1c checks pass, with a Copilot fallback |
+| Junior engineer (simple, briefed tasks) | Per-token price + instruction following + tool-call reliability | Cheapest Copilot Lightweight/Versatile model that passes a representative brief; lowest reasoning level. Name a slightly stronger Copilot fallback |
 
-For the junior tier, pick on cost first. Reject a cheaper model if its tool-call
+For the junior tier, pick on cost first, using the GitHub pricing page for price
+and the Artificial Analysis cost per task at the low or medium reasoning level
+for token efficiency. Reject a cheaper model if its tool-call
 reliability is weak, because retries and escalations cancel the savings. Set the
-reasoning/thinking variant to the lowest available level.
+reasoning/thinking variant to the lowest available level. Apply a pilot gate:
+track first-pass success, escalation rate, and tool-call errors; if escalation
+exceeds about 25–30% or tool-call errors recur, move to the named fallback.
 
 Cost reasoning under usage-based billing:
 - Compare models on **blended price**, not input alone. Agent loops are
@@ -293,29 +255,25 @@ relative model quality, then intersect it with the Copilot catalogue.
 1. **Eligibility and cost: Copilot catalogue, retirement table, GitHub
    pricing** (Steps 1, 1b and the Pricing gate). These decide which models are
    valid and what they cost. They are required regardless of any benchmark.
-2. **Primary quality evidence: Artificial Analysis Coding Agent Index**
-   https://artificialanalysis.ai/agents/coding-agents (and `/comparisons`).
-    Composite of the index's current benchmarks (as of 2026-10-29: FrontierCode
-    implementation, Terminal-Bench shell workflows and SWE-Atlas-QnA-AA
-    repository understanding; names and versions change, so read them from the
-    page). Use it for the
-   senior engineer, reviewer and orchestrator axes. Always read the
-   per-benchmark scores, not only the composite, and also record cost per task,
-   token usage and cache hit rate, wall time per task, safety-refusal rate and
-   reward-hacking rate. A model with a high refusal or fallback rate, or a high
-   reward-hacking rate, is a reliability risk for reviewer and security roles.
-3. **Cross-check: llm-stats leaderboards** — Tool Calling and Reasoning for the
-   orchestrator and tool-using roles, and Coding with the per-benchmark columns
-   (SWE-bench Verified, Terminal-Bench, SWE-Bench Pro, and similar). Do not rely
-   on its composite coding score alone: it is weighted heavily towards arena
-   votes on front-end, game and SVG generation, which says little about backend
-   work. The Tool Calling and Reasoning pages may expose only the top three
-   models, so they cannot rank lightweight or junior candidates; say so.
+2. **Primary quality and efficiency evidence: Artificial Analysis LLM
+   Leaderboard** https://artificialanalysis.ai/leaderboards/models .
+   Record, per shortlisted model and per reasoning level (max, xhigh, high,
+   medium, low, non-reasoning): Intelligence Index, cost per task, time per
+   task and time to first answer token. Rows are separate per reasoning level,
+   and the same model can score 55 at max and 31 at medium, so always name the
+   level compared and the level the agent will actually run at.
+   Cost per task reflects token usage, not just list price: two models with
+   identical per-token prices can differ several times over in cost per task.
+   Use the Intelligence Index / cost-per-task pair for every role and apply the
+   price tie rule in Step 2.
+3. **Supporting cross-check: llm-stats Coding leaderboard**
+   https://llm-stats.com/leaderboards/best-ai-for-coding . Do not rely on its
+   composite score alone: it is weighted heavily towards arena votes on
+   front-end, game and SVG generation, which says little about backend work.
+   Per-benchmark columns (SWE-bench Verified, Terminal-Bench, SWE-Bench Pro) may
+   render without headers; use them only when the column can be identified.
    Ignore the generic capsule prose; use the numbers only.
-4. **Optional: OpenRouter Benchmarks** (https://openrouter.ai/benchmarks), now
-   API-key gated for programmatic access. Use only if the user supplies data;
-   never request or handle a key.
-5. **Supporting only:** vendor model cards for context window and tool-calling
+4. **Supporting only:** vendor model cards for context window and tool-calling
    support.
 
 **Never use as quality evidence:** usage or adoption rankings (OpenRouter Top
@@ -323,11 +281,15 @@ Models, Leaderboard, Market Share, Programming, Domain, Context Length). They
 rank tokens or requests processed, not quality.
 
 Caveats to state in every recommendation:
-- Third-party prices are vendor API prices, not Copilot prices. Cost in the
-  output must come from the GitHub pricing page.
-- Artificial Analysis lists agent variants (model, harness and settings), not
-  bare models. A score through a vendor's own harness may not transfer to
-  OpenCode through Copilot.
+- The Intelligence Index is a general-intelligence composite, not a coding-agent
+  or language-specific score. It does not measure tool-call reliability, Java or
+  Spring Boot quality, or behaviour in an OpenCode loop; say so, and use the
+  pilot gate for roles where those matter.
+- Third-party prices and cost per task use vendor API prices, not Copilot
+  prices. Cost in the output must come from the GitHub pricing page; use cost
+  per task only to compare token efficiency.
+- Reasoning level availability through Copilot and OpenCode may differ from the
+  levels listed; confirm what the agent will run at before relying on a row.
 - Name each source's page update date. If a leaderboard page is more than a few
   weeks old relative to the check date, say so.
 
@@ -335,13 +297,13 @@ Rules:
 - Only models present in **both** the Copilot catalogue and the external data
   are valid recommendations. External slugs differ from Copilot slugs; match by
   model and confirm the Copilot slug from config.
-- Both Artificial Analysis and llm-stats are client-rendered in places, and
-  `webfetch` can return the page frame without chart values. If values do not
-  render, retry once via the comparisons page; then ask the user to paste the
-  rows, mark the evidence `EVIDENCE PARTIAL`, and keep the recommendation
-  provisional. Never fill missing numbers from memory.
-- Cite each source (Artificial Analysis, llm-stats, or OpenRouter) with the URL,
-  retrieval date and the index or benchmark name and score used.
+- Artificial Analysis and llm-stats are partly client-rendered, and `webfetch`
+  can return the page frame without values. If values do not render, retry
+  once; then ask the user to paste the rows, mark the evidence
+  `EVIDENCE PARTIAL`, and keep the recommendation provisional. Never fill
+  missing numbers from memory.
+- Cite each source (Artificial Analysis or llm-stats) with the URL, retrieval
+  date, reasoning level, and the index and score used.
 - When scores are within a few points, apply the price tie rule in Step 2.
 - Copilot catalogue and retirement (Step 1b) decide which models are eligible;
   the benchmark data decides between them. Run the Benchmark gate even if Step 1
@@ -361,8 +323,8 @@ Cost: <$ input / cached input / output per 1M tokens, category, long-context
 Cheaper alternative: github-copilot/<model-id>
 Premium alternative: github-copilot/<model-id>
 Pricing source: <URL + date retrieved>; or `PRICING NOT VERIFIED: <reason>`
-Benchmarks: <index name: score per shortlisted model; gap between top
-            candidates; price ratio>
+Benchmarks: <Intelligence Index score and cost per task per shortlisted model,
+            with reasoning level; gap between top candidates; price ratio>
 Benchmark source: <URL + date retrieved>; or `BENCHMARKS NOT VERIFIED: <what
                   was tried and the result>`
 Checked: <YYYY-MM-DD>
@@ -374,19 +336,6 @@ mandatory. A recommendation without a retrieved price must carry the
 `PRICING NOT VERIFIED` alert. A recommendation without retrieved benchmark data
 must carry the `BENCHMARKS NOT VERIFIED` alert. Either alert makes the
 recommendation provisional.
-
-For an Ollama recommendation use this variant instead:
-
-```
-Recommended: ollama/<tag>
-Availability: ollama provider in global config + `ollama list` + tools capability
-Reason: <cost saving for this role>
-Cost: hardware/time only (GPU/VRAM, tokens/sec); no per-token price
-Quality: unverified; pilot gate = escalation rate <~25-30%, no recurring tool errors
-Copilot fallback: github-copilot/<model-id>
-Context: num_ctx = <value>
-Checked: <YYYY-MM-DD>
-```
 
 ## Notes
 - Copilot enablement is org-controlled — a model may be listed by GitHub but
