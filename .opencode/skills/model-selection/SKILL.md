@@ -19,6 +19,14 @@ No other provider is approved. Do not recommend local or third-party provider
 models; the cheapest suitable Copilot model is the cost-saving option.
 
 ## Never do
+- Set `temperature` in an agent file. Reasoning models in the catalogue often
+  report `capabilities.temperature: false` (as of 2026-11-18: Claude Sonnet,
+  Opus and Haiku 5.5 and GPT-6.1 Sol), and the API rejects the call with
+  `Unsupported parameter: 'temperature' is not supported with this model`,
+  which makes every subagent start fail. GPT-6.1 Terra is listed as supporting
+  it but failed at runtime, so the catalogue flag is not proof. Omit the field
+  unless the user explicitly requests it and a working run proves it is
+  accepted; control behaviour with `reasoningEffort` or the model variant
 - Recommend a model that is not confirmed available in the Copilot catalogue
 - Write a bare model ID without the `github-copilot/` provider prefix
 - Pick a model without naming the ranking axis it wins on
@@ -215,7 +223,7 @@ Checked: <YYYY-MM-DD>
 |------------|--------------|---------------------------|
 | Senior engineer / coding | Intelligence Index per cost per task (llm-stats coding cross-check) | Frontier Claude / GPT reasoning tier |
 | Orchestrator / planner | Intelligence Index + instruction following | Frontier reasoning tier |
-| Reviewer / security | Intelligence Index + careful reasoning | Frontier tier, low temperature |
+| Reviewer / security | Intelligence Index + careful reasoning | Frontier tier, no `temperature` |
 | PM / writer / docs | General intelligence + long context | Mid tier is usually sufficient |
 | Explorer / search / triage | Speed + low per-token price | Lightweight-category model |
 | High-volume, low-risk tasks | Input + output price per 1M tokens | Cheapest model that passes |
@@ -343,8 +351,8 @@ recommendation provisional.
   to the cheaper alternative and tell the user why.
 - Prefer models with confirmed tool-calling support for any agent that uses
   `edit`, `bash`, or `task`.
-- Keep temperature guidance separate from model choice: reviewers and security
-  agents get low temperature (0.1–0.2) regardless of model.
+- Reviewers and security agents rely on explicit checklists and a suitable
+  `reasoningEffort`, not a `temperature` value (see "Never do").
 - There is deliberately no cached catalogue snapshot in this skill. GitHub
   changes model availability frequently, and a stale list invites recommending
   a model that no longer exists. Always perform the live lookup in Step 1.

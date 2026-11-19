@@ -1,8 +1,7 @@
 ---
 description: Designs, audits, and installs governed OpenCode agents and multi-agent teams using Markdown definitions, least-privilege permissions, audited skills, delegation rules, and validated shared runtime configuration.
 mode: primary
-model: github-copilot/claude-sonnet-5.5
-temperature: 0.3
+model: github-copilot/gpt-6.2-sol
 steps: 60
 color: "#ec4899"
 permission:
@@ -252,7 +251,6 @@ ever recommending it, and never for write-capable or high-risk roles by default.
    description: <one clear sentence>
    mode: primary | subagent | all
    model: github-copilot/<justified-model-id>
-   temperature: <0.1–0.7>
    steps: <finite budget>
    color: "<hex>"
    permission:
