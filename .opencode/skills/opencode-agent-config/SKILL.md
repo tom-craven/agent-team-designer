@@ -1,14 +1,17 @@
 ---
 name: opencode-agent-config
-description: Configure shared OpenCode settings (opencode.json instructions, skill paths, providers, MCP, defaults) and validate or audit Markdown agents under .opencode/agents/, including modes, models, steps, permissions, task delegation, and stuck-agent recovery. Also migrates legacy JSON agents to Markdown. Use when creating or changing opencode.json for a team, auditing agent runtime behaviour, or diagnosing step limits and permission deadlocks.
+description: Configure shared OpenCode settings (opencode.json instructions, the skills array or legacy skill paths, providers, MCP, defaults) and validate or audit Markdown agents under .opencode/agents/, including modes, models, steps, permissions, delegation, and stuck-agent recovery. Also migrates legacy JSON agents to Markdown. Use when creating or changing opencode.json for a team, auditing agent runtime behaviour, or diagnosing step limits and permission deadlocks.
 ---
 
 # OpenCode Agent Configuration
 
 Use this skill to configure shared OpenCode settings and validate Markdown agent
 runtime behaviour. This team creates agents only as `.opencode/agents/*.md`.
-The authoritative reference is https://opencode.ai/docs/agents. Re-check it when
-the configuration schema or documented options may have changed.
+Run `opencode --version` first: V2 (https://opencode.ai/v2/docs/) is the native
+target, and V1 shapes are emitted only for a target that explicitly runs
+OpenCode v1. The authoritative references are
+https://opencode.ai/v2/docs/agents and https://opencode.ai/v2/docs/permissions;
+re-check them when the schema or documented options may have changed.
 
 ## Instruction and skill source discovery
 
@@ -35,19 +38,23 @@ When producing a repository configuration:
 
 - Preserve existing compatible settings instead of overwriting them.
 - Merge applicable repository-local and global sources into `instructions` and
-  `skills.paths`; do not configure only one scope when both are available.
+  the `skills` array (V1: `skills.paths`); do not configure only one scope when
+  both are available.
 - Prefer absolute paths for global sources and repository-relative paths for
   target-repository sources where supported by OpenCode.
 - Include repository-local `.agents`, `.copilot`, `.opencode`, and `.github`
-  sources explicitly when they exist, while retaining global sources from
-  `~/.agents`, `~/.copilot`, `~/.config/opencode`, and `~/.github`.
+  guidance when applicable, while retaining compatible global sources. Before
+  adding a skill source, compare path-derived V2 IDs across auto-discovered and
+  explicit sources. A later source wins; never let a Copilot adapter shadow
+  its canonical OpenCode skill. Confirm intentional canonical overrides and
+  verify the selected definition, not just the presence of its ID.
 - Report missing, omitted, conflicting, and included sources.
 - Do not copy or vendor global/third-party skills unless explicitly requested;
   reference trusted paths instead.
 - Apply repository-local guidance as the narrower rule when sources conflict.
 
-The final audit must verify that every configured prompt path, instruction path,
-skill path, and delegation target exists or is intentionally documented as
+The final audit must verify that every configured agent definition, instruction
+path, skill path, and delegation target exists or is intentionally documented as
 missing. It must also verify that the resulting configuration does not expose
 secrets or unrelated private directories.
 
@@ -56,12 +63,13 @@ secrets or unrelated private directories.
 For every team created or modified by `agent-team-designer`:
 
 - Define agents only in `.opencode/agents/<agent-name>.md`.
-- Put the complete description, mode, model, temperature, steps, color,
-  permissions, and prompt in the Markdown definition.
-- Do not add created agents to the top-level `agent` object in `opencode.json`
-  or `opencode.jsonc`.
-- Reserve JSON/JSONC for shared settings: instructions, skill paths, providers,
-  MCP servers, and repository-wide defaults.
+- Put the complete description, mode, model, steps, color, permissions, and
+  prompt in the Markdown definition. In V2 the prompt is the body and any model
+  variant is written into `model` as `provider/model#variant`.
+- Do not add created agents to the top-level `agents` object (V1: `agent`) in
+  `opencode.json` or `opencode.jsonc`.
+- Reserve JSON/JSONC for shared settings: instructions, the `skills` array,
+  providers, MCP servers, and repository-wide defaults.
 - Inventory both sources before changes. If the same name exists in Markdown and
   JSON, treat it as a blocking duplicate. Migrate all unique JSON fields into
   Markdown, then remove the JSON entry in the same change.
@@ -70,36 +78,38 @@ For every team created or modified by `agent-team-designer`:
 The JSON agent shape below is reference material for auditing legacy
 configurations only; do not use it when creating a team.
 
-### Legacy JSON agent shape (audit reference only)
+### JSON agent shape (V2 reference)
 
-Agents are configured under the top-level `agent` object. The agent key becomes
-the agent name.
+Native V2 agents live under the top-level `agents` object; the agent key becomes
+the agent name. File-based Markdown remains the required source of truth for
+this team, so use this shape only to audit or migrate a JSON configuration.
 
-```json
+```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "agent": {
+  "agents": {
     "agent-name": {
       "description": "One searchable sentence describing what this agent does and when to use it.",
       "mode": "subagent",
-      "model": "provider/model-id",
-      "prompt": "{file:./prompts/agent-name.txt}",
-      "temperature": 0.2,
+      "model": "provider/model-id#variant",
+      "system": "The complete system prompt.",
       "steps": 30,
-      "permission": {
-        "edit": "allow",
-        "bash": {
-          "*": "ask",
-          "git status *": "allow"
-        },
-        "task": "deny",
-        "skill": "allow"
-      },
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "shell", "resource": "git status *", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "*", "effect": "allow" }
+      ],
       "color": "#2563EB"
     }
   }
 }
 ```
+
+V1 used the singular `agent` map with `prompt`, `permission`, `bash`, and
+`task`. Read those only when auditing a legacy configuration; do not emit them
+for a V2 target.
 
 Use `steps`, not the deprecated `maxSteps`. If `steps` is omitted, the agent
 continues until the model stops or the user interrupts. Set a finite value for
@@ -120,18 +130,19 @@ unfinished task complete.
 4. Select a model only after confirming provider availability and current evidence.
 5. Keep the system prompt in the Markdown agent body. Do not split the same
    agent's configuration between Markdown and JSON.
-6. Apply least-privilege permissions. Prefer explicit command patterns over
-   unrestricted `bash: "allow"`. When `software-knowledge` is configured for
-   the team, the orchestrator / primary and every agent assigned that skill must
-   have `edit` allow on `knowledge/**`, including deletion through scoped file
-   tools. Every agent assigned the skill must also have bash allow for that
-   skill's `compile_graph.py` and `lint_knowledge.py` scripts. Do not keep a
-   blanket `edit: deny` or `"*": deny` on `edit` for those agents — the
-   catch-all deny wins and blocks knowledge-graph writes. Do not allow shell
-   deletion commands solely for knowledge maintenance. Require prompts to limit
-   deletion to proven stale, duplicate, or disposable superseded artefacts,
-   check references, preserve historical decisions unless proven duplicate,
-   compile and lint after deletion, and report deleted paths and rationale.
+6. Apply least-privilege permissions. Prefer explicit command patterns over an
+   unrestricted shell allow (`shell: "*": "allow"` in V2, `bash: "allow"` in
+   V1). When `software-knowledge` is configured for the team, the orchestrator /
+   primary and every agent assigned that skill must have `edit` allow on
+   `knowledge/*`. Verify a deletion-capable file tool separately. In V2 order that
+   allow **after** the broad `edit` deny or ask; never use the V1 catch-all
+   `"*": deny` map, where the catch-all wins. Every agent assigned the skill
+   must also have shell allow for that skill's `compile_graph.py` and
+   `lint_knowledge.py` scripts. Do not allow shell deletion commands solely for
+   knowledge maintenance. Require prompts to limit deletion to proven stale,
+   duplicate, or disposable superseded artefacts, check references, preserve
+   historical decisions unless proven duplicate, compile and lint after
+   deletion, and report deleted paths and rationale.
    For OpenCode V2, also grant `external_directory` allow for the skill's
    directory and `scripts/` directory in `<dir>/*` form and for the venv
    interpreter's canonical directories (from `.venv/pyvenv.cfg`). V2 checks
@@ -139,7 +150,8 @@ unfinished task complete.
    `cd <repo> && <script>` allow needs a separate exact `cd <repo>` allow.
 7. Set `steps` based on the workflow. For implementation, reserve steps for
    repository inspection, edits, tests, and final reporting.
-8. Validate that delegation targets named in `permission.task` actually exist.
+8. Validate that delegation targets named in `subagent` rules (V1:
+   `permission.task`) actually exist.
 9. Test the configuration with a representative prompt and verify the agent's
    final status, tool access, and handoff evidence.
 
@@ -150,24 +162,65 @@ skills, delegation, or broader permissions to fill design gaps.
 
 ## Permissions
 
-Permission values are `allow`, `ask`, or `deny`. Supported gates include
-`read`, `edit`, `glob`, `grep`, `list`, `bash`, `task`, `external_directory`,
-`todowrite`, `webfetch`, `websearch`, `lsp`, `skill`, `question`, and
-`doom_loop`.
+V2 uses one ordered `permissions` list of `action` / `resource` / `effect`
+rules, and the **last matching rule wins**, so put broad rules first and
+specific exceptions after. V1 groups effects by tool in a `permission` map.
+Never mix the two shapes in one agent.
 
-For `bash` and `task`, use ordered pattern objects. The **last matching
-rule wins**, so put the wildcard first.
+Effects are `allow`, `ask`, and `deny`; no matching rule means `ask`.
 
-For `edit`, do **not** use `"*": deny` plus later path allows. A catch-all
-`edit` deny wins and blocks Write/StrReplace even when `knowledge/**` is
-listed as allow. For every agent assigned `software-knowledge`, allow
-`knowledge/**` (and report paths) and deny named application trees instead.
-This scoped edit permission also supplies safe file deletion; do not broaden
-Bash with `rm`, `del`, or equivalent commands.
+V2 actions for the built-in tools:
+
+| Action | Resource |
+|---|---|
+| `read` | Path to read |
+| `edit` | Target path for edit, write, and patch |
+| `glob` | Requested glob pattern |
+| `grep` | Requested regular expression, not the search path |
+| `list` | Directory to list |
+| `shell` | Scanner-produced command string |
+| `subagent` | Target agent ID |
+| `skill` | Skill ID |
+| `question` | `*` |
+| `webfetch` / `websearch` | URL / query |
+| `external_directory` | External directory boundary, normally `<dir>/*` |
+| `<server>_<tool>` | MCP tool |
+
+`doom_loop` and `lsp` are not V2 permission actions.
+
+V2 path matching: `*` matches zero or more characters **including `/`**, and
+`?` matches one character. There is no `**` token. A `**/` prefix does not match
+a root-level file, so `**/.env` leaves `.env` readable. Write whole-path
+patterns (`*.env`, `*settings.xml`, `*.kube/*`) and probe realistic paths.
+
+Two V2 defaults matter for least privilege:
+
+- Every agent starts with a base allow policy; `.env` reads ask by default.
+- `external_directory` is **allowed** by default, where V1 asked. Add
+  `{ "action": "external_directory", "resource": "*", "effect": "ask" }` when
+  the agent must not leave the project silently.
+
+For `edit`, order matters. Place the broad `edit` rule first, then the
+`knowledge/*` allow:
+
+```yaml
+- action: edit
+  resource: "*"
+  effect: deny
+- action: edit
+  resource: "knowledge/*"
+  effect: allow
+```
+
+For every agent assigned `software-knowledge`, allow `knowledge/*` (and report
+paths) and deny named application trees instead. The permission is necessary
+but does not supply a tool. V2 `patch` supports deletion only where the selected
+model exposes it; `edit` and `write` alone do not. If scoped deletion cannot be
+verified, block the skill gate; do not grant shell deletion as a fallback.
 
 For Gradle repositories, assume `gradle.properties` may contain credentials.
 Every agent and the repository-wide configuration must deny both
-`gradle.properties` and `**/gradle.properties` through the `read` gate and deny
+`gradle.properties` and `*gradle.properties` through the `read` action and deny
 edits to the same paths. Deny direct shell disclosure (`cat`, `type`,
 `Get-Content`, `grep`, `rg`, and equivalents) and indirect disclosure through
 unrestricted Git diff, log, or show commands. Do not allow unrestricted
@@ -177,31 +230,40 @@ release, push, and property-reporting operations after the allow rules so the
 last match wins. A Gradle process may internally consume project properties, so
 task allowlisting is required in addition to file-read denial.
 
-```json
-"bash": {
-  "*": "deny",
-  "git status *": "allow",
-  "npm test *": "allow"
-}
+```yaml
+- action: shell
+  resource: "*"
+  effect: deny
+- action: shell
+  resource: "git status *"
+  effect: allow
+- action: shell
+  resource: "npm test *"
+  effect: allow
 ```
 
-Use `doom_loop` deliberately. It controls recovery prompts when OpenCode
-detects that an agent appears stuck. Do not disable it merely to hide symptoms.
-Instead, combine it with a prompt-level completion protocol:
+OpenCode V2 has no `doom_loop` permission action. Stuck-agent recovery is
+governed entirely by the prompt-level completion protocol below, so never cite
+a recovery permission as the safety net and never delete the protocol to hide
+symptoms. V1 agents may still carry `doom_loop`; treat it as legacy when you
+audit one.
 
-```json
-"permission": {
-  "doom_loop": "allow",
-  "task": {
-    "*": "deny",
-    "backend-engineer": "allow",
-    "code-reviewer": "allow"
-  }
-}
+Delegation is a `subagent` action in V2:
+
+```yaml
+- action: subagent
+  resource: "*"
+  effect: deny
+- action: subagent
+  resource: "backend-engineer"
+  effect: allow
+- action: subagent
+  resource: "code-reviewer"
+  effect: allow
 ```
 
-When `task` is `deny`, the subagent is removed from the Task tool description.
-This is useful for specialists that must not delegate. Direct user `@` mentions
+A `subagent` deny removes the target from the delegation tool description. This
+is useful for specialists that must not delegate. Direct user `@` mentions
 remain possible, so prompt boundaries still matter.
 
 ## Doom-loop escalation report
@@ -221,7 +283,7 @@ Require the agent to treat any of these as a doom loop:
 - being unable to proceed because a permission returns `deny` or repeatedly `ask`;
 - a needed specialist, skill, model, or path being unavailable;
 - oscillating between two approaches without converging;
-- the OpenCode doom-loop recovery prompt firing.
+- the agent noticing that it has issued the same call for the third time.
 
 ### Required behaviour on detection
 
@@ -234,7 +296,8 @@ Require the agent to treat any of these as a doom loop:
 4. Finish the turn with status `BLOCKED` and name the report path.
 
 The agent must therefore have `edit` access to its report directory, or the
-configuration must document that reports will be returned inline only.
+configuration must document that reports will be returned inline only. In V2
+place that allow after the broad `edit` rule.
 
 ### Report template
 
@@ -244,7 +307,7 @@ configuration must document that reports will be returned inline only.
 - Agent: <agent-name>
 - Repository: <absolute path>
 - Timestamp: <ISO 8601>
-- Detected by: <self-detected | doom_loop recovery prompt | user>
+- Detected by: <self-detected | user>
 
 ## Objective
 <the task the agent was asked to complete>
@@ -258,7 +321,7 @@ configuration must document that reports will be returned inline only.
 ## Suspected root cause
 Select all that apply and justify each:
 - [ ] Missing skill or capability: <which capability, and what it would need to do>
-- [ ] Missing or denied permission: <exact permission gate and pattern needed>
+- [ ] Missing or denied permission: <exact V2 action and resource, or V1 gate and pattern>
 - [ ] Missing delegation target: <specialist that should exist or be allowed>
 - [ ] Step budget exhausted: <steps configured vs. work required>
 - [ ] Ambiguous or conflicting instructions: <which sources conflict>
@@ -274,7 +337,7 @@ would unblock this work>
 <exact JSON or front-matter fragment, if known>
 
 ## Safety note
-<anything that must not be granted, e.g. do not widen bash to "*": "allow">
+<anything that must not be granted, e.g. do not widen shell to "*": "allow">
 
 ## What was completed before stalling
 <files changed, verified behaviour, and anything left in a partial state>
@@ -289,9 +352,9 @@ delegation problem, route it back through this skill. When it identifies
 overlapping or ambiguous responsibilities, route it to `agent-audit` or
 `agent-org-design`.
 
-Never resolve a doom loop by granting blanket `bash: "*": "allow"`, removing
-`doom_loop`, or raising `steps` without evidence that step exhaustion was the
-actual cause.
+Never resolve a doom loop by granting blanket `shell: "*": "allow"`, removing
+the prompt's completion protocol, or raising `steps` without evidence that step
+exhaustion was the actual cause.
 
 ## Anti-stall requirements
 
@@ -316,18 +379,22 @@ treated as a handoff or partial result until the completion gates are checked.
 
 - Is `description` present, specific, and searchable?
 - Is the mode appropriate?
-- Is the model ID valid for the configured provider?
-- Is the prompt path correct and available?
+- Is the model ID valid for the configured provider, including any variant?
+- Is the agent's `permissions` list (V2) or `permission` map (V1) complete and
+  well-formed, with no mixed formats?
 - Is `steps` finite and proportionate to the task?
-- Are edit, Bash, external-directory, skill, and task permissions least-privilege?
-- Do Bash and task patterns have the wildcard first and specific exceptions after?
+- Are edit, shell, external-directory, skill, and subagent permissions
+  least-privilege?
+- Do ordered permission rules put the broad rule first and specific exceptions
+  after?
 - Are delegation targets real and non-overlapping?
-- Is `doom_loop` available for recovery without masking a broken workflow?
-- Does the prompt define doom-loop detection triggers and require a written
-  escalation report at a stated path?
+- If the agent can be stuck, does the prompt define detection triggers and
+  require a written escalation report at a stated path? (V2 has no `doom_loop`
+  action; the prompt is the only recovery mechanism.)
 - Can the agent actually write that report, or is inline-only fallback documented?
 - Does the prompt define completion, blocker handling, and evidence requirements?
-- Are deprecated `tools` or `maxSteps` fields being avoided or migrated?
+- Are deprecated `tools`, `maxSteps`, `temperature`, and `prompt` fields being
+  avoided or migrated?
 - Were repository `.agents`, `.copilot`, `.opencode`, and `.github`
   instructions and skills discovered and configured?
 - Were global `~/.agents`, `~/.copilot`, `~/.config/opencode`, and `~/.github`
@@ -346,8 +413,8 @@ When designing or changing an agent, provide:
 
 1. the complete Markdown agent files and frontmatter;
 2. any agent-body prompt changes;
-3. the complete `instructions` and `skills.paths` changes, with source
-   precedence and included/omitted/missing paths;
+3. the complete `instructions` and `skills` array changes (V1: `skills.paths`),
+   with source precedence and included/omitted/missing paths;
 4. permission and step-limit rationale;
 5. migration notes for deprecated or conflicting settings;
 6. the doom-loop escalation rule applied, including the report path and any

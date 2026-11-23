@@ -11,6 +11,16 @@ spec.loader.exec_module(csb)
 
 BODY = "\n- Never print secrets; write `[REDACTED]` instead.\n"
 
+# Native V2 whole-path patterns. ``*`` crosses ``/``; ``**/`` would not match a
+# root-level file, so the probes in the checker use real paths instead.
+V2_PATH_DENIES = [
+    "*.env", "*.env.*", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks",
+    "*.keystore", "*id_rsa*", "*id_ed25519*", "*.npmrc", "*.pypirc",
+    "*.netrc", "*settings.xml", "*gradle.properties", "*.tfvars",
+    "*.tfstate", "*.tfstate.*", "*kubeconfig*", "*.kube/*", "*.aws/*",
+    "*.azure/*", "*.docker/config.json", "*credentials*", "*secrets/*",
+]
+
 
 def rule(action: str, resource: str, effect: str) -> str:
     return f'  - action: {action}\n    resource: "{resource}"\n    effect: {effect}\n'
@@ -18,8 +28,8 @@ def rule(action: str, resource: str, effect: str) -> str:
 
 def v2_agent(extra_tail: str = "", shell_allow: bool = True) -> str:
     rules = rule("read", "*", "allow")
-    rules += "".join(rule("read", p, "deny") for p in csb.REQUIRED_PATH_DENIES)
-    rules += "".join(rule("edit", p, "deny") for p in csb.REQUIRED_PATH_DENIES)
+    rules += "".join(rule("read", p, "deny") for p in V2_PATH_DENIES)
+    rules += "".join(rule("edit", p, "deny") for p in V2_PATH_DENIES)
     rules += rule("grep", "*", "deny")
     rules += rule("shell", "*", "deny")
     if shell_allow:
@@ -41,7 +51,15 @@ def test_v2_compliant_agent_passes(tmp_path):
 
 def test_v2_trailing_allow_overrides_secret_deny(tmp_path):
     errs = check(tmp_path, v2_agent(rule("read", "**", "allow")))
-    assert any("read: secret path **/.env" in e for e in errs)
+    assert any("read: secret path .env" in e for e in errs)
+
+
+def test_v2_root_level_secret_gap_is_caught(tmp_path):
+    # A V1 glob such as ``**/.env`` does not match a root-level ``.env`` under
+    # V2 whole-path matching, so the probe must catch the regression.
+    text = v2_agent().replace(
+        rule("read", "*.env", "deny"), rule("read", "**/.env", "deny"))
+    assert any("read: secret path .env" in e for e in check(tmp_path, text))
 
 
 def test_v2_wildcard_action_allow_overrides(tmp_path):

@@ -9,7 +9,7 @@ Design clean multi-agent teams with clear ownership.
 
 ## Never do
 - Create many overlapping primaries with no coordinator
-- Give every specialist full edit/bash by default
+- Give every specialist full edit/shell by default
 - Leave delegation rules implicit
 - Design roles without evidence from the target repository and its existing agents
 - Leave hand-off inputs, outputs, or completion ownership undefined
@@ -23,7 +23,7 @@ Design clean multi-agent teams with clear ownership.
 **2. Orchestrator + Specialists (default recommendation)**
 ```
 User
- └── Orchestrator (primary, edit/bash deny, task allow)
+ └── Orchestrator (primary, edit/shell deny, subagent allow)
       ├── developer
       ├── pm
       ├── reviewer
@@ -34,14 +34,17 @@ When the team includes `software-knowledge`, the orchestrator is still
 non-implementing for application code, but **must** be allowed to write and
 delete within `knowledge/**` and run the skill compile/lint scripts so it can
 create and maintain the knowledge graph. Every specialist assigned the skill
-must receive the same scoped `knowledge/**` edit capability, without gaining
+must receive the same scoped `knowledge/` edit capability, without gaining
 application-code or shell deletion access. That exception is required, not
-optional. Prompts must limit deletion to proven stale, duplicate, or disposable
+optional. Verify a deletion-capable file tool in addition to the `edit` rule.
+Prompts must limit deletion to proven stale, duplicate, or disposable
 superseded artefacts; require reference checks; preserve historical decisions
 unless proven duplicate; and require compile/lint plus a deletion report.
-Do not express it as `"*": deny` plus `knowledge/**`: allow — the catch-all
-edit deny wins and blocks those writes. Deny `src/**`, `tests/**`, and
-other application trees instead.
+Do not express it as a V1 `"*": deny` edit map, where the catch-all wins and
+blocks those writes. In native V2 rules the last match wins: place the broad
+`edit` deny or ask first, then the `knowledge/*` allow, then any narrower
+application-path rules. Deny `src/*`, `tests/*`, and other application trees
+instead of blocking all edits.
 
 **3. Multiple primaries**
 - User switches with Tab

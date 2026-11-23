@@ -25,6 +25,7 @@ CANONICAL_SKILLS = (
     "model-selection",
     "opencode-agent-config",
     "prompt-patterns",
+    "sanitized-diff",
     "skill-creator",
     "skill-security-audit",
     "software-knowledge",

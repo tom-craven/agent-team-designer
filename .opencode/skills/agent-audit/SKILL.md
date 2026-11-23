@@ -22,7 +22,8 @@ Systematically review agents and produce actionable findings.
 1. **Single responsibility** — one clear job?
 2. **Description** — specific and discoverable?
 3. **System prompt** — clear role, boundaries, process?
-4. **Permissions** — least privilege? (edit/bash/task/skill)
+4. **Permissions** — least privilege? (edit/shell/subagent/skill/external-directory,
+   as ordered V2 rules or the legacy V1 map)
 5. **Mode** — primary vs subagent appropriate?
 6. **Model fit** — use `model-selection`
 7. **Overlap** — conflicts with another agent?
@@ -34,12 +35,20 @@ Systematically review agents and produce actionable findings.
 13. **Secret baseline** — applied automatically whether or not the user asked
     for it. Check every route in
     `.opencode/skills/agent-org-design/reference/secret-baseline.md`: `read`
-    and `edit` path denials, `grep: deny`, shell and Git-history denials after
-    all bash allows, stack additions for the detected build tools (Maven
+    and `edit` path denials, a `grep` deny, shell and Git-history denials after
+    all shell allows, stack additions for the detected build tools (Maven
     `settings.xml`, Gradle `gradle.properties`, Terraform state, kubeconfig,
-    …), and the redaction clause in the prompt. Run
+    …), and the redaction clause in the prompt. For V2 verify the whole-path
+    patterns (`*.env`, not `**/.env`) and that `external_directory` is stated
+    rather than left at the V2 default. Run
     `python3 scripts/check_secret_baseline.py <agents-dir>` when the files are
-    on disk. Any missing route is **Critical**.
+    on disk (Windows: `py -3`). Run it as **one stand-alone shell command**:
+    no `;`, `&&`, `||`, pipes, or chained checks such as `opencode --version`
+    or `Test-Path`. V2 permission-checks every segment of a compound command
+    separately, so one unlisted segment denies the whole call. Use relative
+    `scripts/...` with the designer workspace as the working directory and the
+    target agents directory as the only argument. Run other checks as separate
+    calls. Any missing route is **Critical**.
 
 ## Team-level gate
 
@@ -52,8 +61,11 @@ After reviewing agents individually, verify the assembled team:
 - does not rely on unavailable models, missing paths, or unaudited third-party skills;
 - can produce a useful handoff when permissions, dependencies, or steps block work;
 - if `software-knowledge` is installed, the orchestrator / primary and every
-  agent assigned that skill can edit and delete within `knowledge/**`, with no
-  `"*": deny` on the same `edit` object; each can run compile/lint scripts;
+  agent assigned that skill can edit and delete within `knowledge/*`, with the
+  allow ordered after any broader `edit` deny or ask (V2) and without a V1
+  catch-all deny; each has a deletion-capable file tool and can run compile/lint
+  scripts. A matching `edit` rule alone does not establish tool availability;
+  do not approve deletion as runnable without evidence, or grant shell deletion;
   prompts limit deletion to proven stale, duplicate,
   or disposable superseded artefacts, require reference checks, preserve
   historical decisions unless proven duplicate, and require deletion reports.

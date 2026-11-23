@@ -100,8 +100,9 @@ If yes, add `junior-engineer` (`mode: subagent`) with **junior-first routing**:
   escalated.
 - Permissions: edit limited to application/test paths, with no knowledge or
   config writes unless the team grants `software-knowledge` to it; shell
-  limited to the named test/lint/build commands; `task: "*": deny`; full
-  secret baseline. Lower step budget than the senior.
+  limited to the named test/lint/build commands; delegation denied (V2
+  `subagent "*": deny`; V1 `task: "*": deny`); full secret baseline. Lower
+  step budget than the senior.
 - Select its model with `model-selection` using the junior-engineer axis: the
   cheapest GitHub Copilot Lightweight/Versatile model that passes a
   representative brief, at the lowest reasoning level. Record the price, the
@@ -150,15 +151,18 @@ confirmed project key(s).
      CLIs, and never ask the user to widen permissions.
   4. Retry the check at most twice after the user reports it is fixed; if it
      still fails, report `BLOCKED` for the Jira tier.
-- **Permissions:** `edit: deny` and `grep: deny`; `read` with the full secret
-  baseline; `bash: "*": deny`; `task: "*": deny`; `skill` limited to
-  `querying-jira` or similar only if audited and wanted. For MCP tools use a
-  pattern object, wildcard first: `"<server>_*": deny`, then allow only the
-  needed tools (search/get issue, issue-type metadata, create, edit, add
-  comment, transitions get/do, create issue link, link types, user lookup).
-  Set worklog tools to `ask`. Grant no delete or bulk-admin tools. Tool
-  permissions cannot restrict parameters, so project scoping is enforced by the
-  prompt and by the audit (see below); say so plainly in the design rationale.
+- **Permissions:** in V2, start with `{ action: "*", resource: "*", effect: deny }`.
+  Then allow only the required, observed Atlassian MCP actions by exact
+  `<server>_<tool>` name with resource `*`. Use only the actions needed for
+  search/get issue, issue-type metadata, create, edit, comment, transitions,
+  links, and user lookup. Set individually approved worklog actions to `ask`.
+  Leave `execute` denied so V2 exposes the approved MCP tools directly. Do not
+  grant local file access, shell, delegation, other MCP tools, or any delete or
+  bulk-admin tools. Keep the full secret baseline; do not grant CLI-backed Jira
+  skills. For V1 use a separately verified legacy `permission` map with the
+  same boundaries. MCP permission rules restrict whole tools, not parameters:
+  project scoping in the prompt is not a runtime access boundary. Verify the
+  connector's actual scope separately and state any broader access in the design.
 - **Prompt rules (mandatory):**
   1. Use only the confirmed cloud ID and project key(s); refuse and report
      `BLOCKED` for any other project or site.
@@ -179,15 +183,16 @@ confirmed project key(s).
   8. Return issue keys, URLs, and exactly what was created or changed, plus any
      fields left unset. Do not claim an update succeeded without the tool result.
   9. Stop after two failed identical tool calls and report `BLOCKED`.
-- **Orchestrator wiring:** the orchestrator's `task` allow-list gains
-  `jira-specialist`; its prompt routes all Jira writes through it. Specialists
+- **Orchestrator wiring:** the orchestrator's `subagent` allow-list (V1: `task`)
+  gains `jira-specialist`; its prompt routes all Jira writes through it. Specialists
   list proposed ticket content in hand-off reports and never call Jira
   themselves.
 - **Model:** select with `model-selection` on a low-cost, reliable
   tool-calling axis; the role needs structured MCP calls and clear writing, not
-  deep reasoning. Use a low `temperature` (0.1-0.2) and a small step budget.
+  deep reasoning. Use a small step budget and omit `temperature`. Use a
+  verified model variant if a reasoning setting is needed.
 - **Audit gate:** `agent-audit` treats a missing project-key restriction in the
-  prompt, any delete or admin MCP grant, `edit`/`bash` access, or another agent
+  prompt, any delete or admin MCP grant, `edit`/`shell` access (V1: `edit`/`bash`), or another agent
   able to delegate to it as a Critical finding.
 
 If no, do not create the role and record the decision.
@@ -207,17 +212,21 @@ For every approved role:
    Apply the secret baseline from
    `.opencode/skills/agent-org-design/reference/secret-baseline.md` to every
    agent without waiting for the user to ask: `read`/`edit` path denials,
-   `grep: deny`, shell and Git-history denials after all bash allows, the
+   a `grep` deny, shell and Git-history denials after all shell allows, the
    stack additions for every build tool found in step 1 (for example Maven
    `settings.xml` and deploy/release goals, Gradle `gradle.properties` with
    named-task allowlists and a `properties`-task denial, Terraform state), and
-   the mandatory redaction clause in the prompt. Never relax it.
+   the mandatory redaction clause in the prompt. Never relax it. Use native V2
+   ordered rules when the target runs V2, and whole-path patterns such as
+   `*.env` rather than `**/.env`; state `external_directory` explicitly
+   because V2 allows it by default.
    When the user requested `software-knowledge` for the team, the orchestrator
    / primary and every agent assigned that skill must receive `edit` allow on
-   `knowledge/**`, including scoped file deletion, even if they otherwise cannot
-   edit the repository. Do **not** pair that allow with
-   `"*": deny` on `edit` — a catch-all edit deny wins and blocks writes to
-   `knowledge/`. Deny named application paths instead. Also allow every agent
+   `knowledge/*`, including scoped file deletion, even if they otherwise cannot
+   edit the repository. In V2 place that allow **after** the broad `edit` deny
+   or ask. Never use the V1 catch-all `"*": deny` map, where the catch-all
+   wins and blocks writes to `knowledge/`; deny named application paths
+   instead. Also allow every agent
    assigned the skill to run its compile and lint scripts that write
    `knowledge/index.yaml` and `knowledge/graph.yaml`. Require agents to delete
    only proven stale, duplicate, or
@@ -241,10 +250,16 @@ the system prompt in the body. Never create or retain a same-name agent under
 Skills are referenced **in place**. Never copy or vendor a skill into the target,
 and never assume a skill folder. Resolve sources in this order:
 
-1. **Local sources, automatic.** Add `.opencode/skills` and `.github/skills` to
-   `skills.paths` (repo-relative) only when the folder exists in the target.
-   Likewise include `.github/copilot-instructions.md` in `instructions` only when
-   it exists. Report each local source as included, omitted, or missing.
+1. **Local sources.** Prefer canonical `.opencode/skills` definitions. OpenCode
+   V2 auto-discovers that folder. Before explicitly adding `.github/skills` or
+   any other source to the V2 `skills` array (V1: `skills.paths`), check for
+   duplicate path-derived V2 IDs across all discovered and configured sources.
+   A later V2 source wins. Do not register Copilot adapters that shadow an
+   OpenCode definition; if a mixed source cannot be included without shadowing,
+   omit it and report any unresolved capability. Confirm any intentional
+   canonical override and audit the definition that will actually load.
+   Include `.github/copilot-instructions.md` only when present and applicable.
+   Report each source as included, omitted, or missing.
 2. **Prompt the user for additional skill repositories (mandatory question).**
    Ask during installation, before writing configuration: **"Would you like to
    include any additional skill repositories, for example your global skills or a
@@ -256,8 +271,9 @@ and never assume a skill folder. Resolve sources in this order:
      the user selects a skill.
    - The user chooses which skills the team may use. Run `skill-security-audit`
      on each chosen skill and record a verdict before wiring it in.
-   - Write the confirmed folder to `skills.paths` exactly as given (absolute path,
-     or `~/...` only after confirming the installed OpenCode resolves it).
+    - Apply the same collision check to each confirmed folder before adding it
+      to the version-appropriate skill sources. Prefer an absolute path, or
+      confirm that the target runtime resolves the supplied `~/...` path.
    - Add the folder to the relevant agents' `external_directory` allow in the
      form the installed OpenCode version uses, limited to the chosen skill
      folder, and name each chosen skill individually in the agents' `skill`
@@ -288,16 +304,16 @@ Record every capability as `satisfied`, `new skill required`, `optional`, or
 `unresolved`. Do not silently omit unresolved essential capabilities.
 
 When `software-knowledge` is in the approved skill set, treat scoped edit and
-deletion access to `knowledge/**` for the orchestrator and every agent assigned
+deletion access to `knowledge/*` for the orchestrator and every agent assigned
 the skill as essential, not optional broadening. Also grant the orchestrator
 (the scaffold owner) `edit` allow on the repository-root `ARCHITECTURE.md`
 only, because the scaffold workflow requires filling it; do not widen this to
 other root files. Its prompt must name `knowledge/` and `ARCHITECTURE.md` as
 the only files it may write, and its scaffold step must cover
 `init_knowledge.py .`, filling `knowledge/system.md` and `ARCHITECTURE.md`,
-then compile and strict lint. An affected agent with
-`edit: deny`, or with `"*": deny` in the same `edit` object as
-`knowledge/**`, is a skill-gate failure.
+then compile and strict lint. An affected agent whose rules resolve to an
+`edit` deny on `knowledge/*`, or a V1 catch-all `"*": deny` placed before the
+allow, is a skill-gate failure.
 
 Knowledge capture must cover every node kind, not only decisions and
 invariants:
@@ -313,7 +329,7 @@ invariants:
 - Any independent reviewer checks that the harvest ran.
 - Offer an optional `knowledge-curator` subagent when the team will produce
   frequent decisions or the repository already has buried knowledge. Invoked
-  only by the orchestrator after acceptance; edit limited to `knowledge/**`;
+   only by the orchestrator after acceptance; edit limited to `knowledge/*` in V2;
   shell limited to the skill's compile, lint, and `prune_knowledge.py` scripts; no
   task delegation. It reclassifies and links knowledge and never makes design
   decisions. Add it only with user agreement.
@@ -398,6 +414,9 @@ Python scripts, such as `software-knowledge`):**
 
 ### 5. Audit the complete design
 
+- When the team has an independent reviewer or verifier needing changed lines,
+  load `sanitized-diff` and install its script for the evidence producer instead
+  of granting any raw `git diff`.
 - Load `agent-audit` after all proposed agents and skills are visible together.
 - Block configuration on unresolved critical findings.
 - Require concrete corrections for role overlap, invalid delegation, excessive
@@ -418,7 +437,7 @@ Python scripts, such as `software-knowledge`):**
   and recovery behaviour exclusively in `.opencode/agents/*.md`.
 - Use `opencode.json` or `opencode.jsonc` only for shared settings such as
   instructions, skill paths, providers, MCP servers, and repository-wide
-  defaults. Do not add a top-level `agent` object for created agents.
+  defaults. Do not define created agents under either `agents` (V2) or `agent` (V1).
 - When migrating an existing JSON agent, transfer every unique field to the
   Markdown file and remove the JSON entry in the same change.
 - After the agent files are created, set `"default_agent"` in the target's
@@ -427,9 +446,9 @@ Python scripts, such as `software-knowledge`):**
   file and value in the pre-write confirmation list. If an existing
   `default_agent` points elsewhere, surface the conflict and ask before
   replacing it. Never point it at a `subagent`-mode or hidden agent.
-- Match the config shape the installed OpenCode version accepts. Copy the shape
-  from a configuration known to load on the same machine (for example
-  `"skills": { "paths": [...] }` versus `"skills": [...]`). Do not switch
+- Match the config shape the installed OpenCode version accepts: V2 uses
+  `"skills": [...]` and V1 uses `"skills": { "paths": [...] }`. Copy the shape
+  from a configuration known to load on the same machine. Do not switch
   between V1 and V2 shapes without the runtime error text.
 - Never broaden permissions merely to make validation pass.
 
@@ -440,9 +459,12 @@ Python scripts, such as `software-knowledge`):**
 - Validate JSON or JSONC syntax and the current OpenCode schema.
 - Confirm every configured agent, prompt, instruction, skill path, and
   delegation target resolves.
-- Compare `.opencode/agents/*.md` names with keys under any existing JSON
-  `agent` object. Zero duplicates are allowed; a duplicate fails the runtime
-  gate. Created teams should have no agent definitions in JSON at all.
+- Compare `.opencode/agents/*.md` IDs with keys under both `agents` and `agent`
+  in JSON and JSONC. Any same-ID definition fails the runtime gate, even if it
+  uses the other major version's key. Keep newly created agents Markdown-only.
+- When `software-knowledge` is selected, verify each assigned role exposes a
+  deletion-capable file tool and can delete within `knowledge/` without gaining
+  shell deletion. A matching `edit` rule alone does not pass this gate.
 - Confirm `default_agent` names an existing `.opencode/agents/<name>.md` whose
   `mode` is `primary` or `all`; a missing or invalid default fails the runtime
   gate.

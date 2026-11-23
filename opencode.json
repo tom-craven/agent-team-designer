@@ -4,9 +4,10 @@
   "instructions": [
     "AGENTS.md"
   ],
-  "skills": {
-    "paths": [
-      ".opencode/skills"
-    ]
-  }
+  "skills": [
+    ".opencode/skills"
+  ],
+  "permissions": [
+    { "action": "external_directory", "resource": "*", "effect": "ask" }
+  ]
 }

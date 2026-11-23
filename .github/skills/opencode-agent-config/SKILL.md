@@ -1,6 +1,6 @@
 ---
 name: opencode-agent-config
-description: "Configure shared OpenCode settings (opencode.json instructions, skill paths, providers, MCP, defaults) and validate or audit Markdown agents under .opencode/agents/, including modes, models, steps, permissions, task delegation, and stuck-agent recovery. Also migrates legacy JSON agents to Markdown. Use when creating or changing opencode.json for a team, auditing agent runtime behaviour, or diagnosing step limits and permission deadlocks."
+description: "Configure shared OpenCode settings (opencode.json instructions, the skills array or legacy skill paths, providers, MCP, defaults) and validate or audit Markdown agents under .opencode/agents/, including modes, models, steps, permissions, delegation, and stuck-agent recovery. Also migrates legacy JSON agents to Markdown. Use when creating or changing opencode.json for a team, auditing agent runtime behaviour, or diagnosing step limits and permission deadlocks."
 ---
 
 # opencode-agent-config

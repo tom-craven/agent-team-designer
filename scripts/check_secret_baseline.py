@@ -29,6 +29,21 @@ REQUIRED_BASH_DENIES = [
     "mvn help:effective-settings*", "*gradle* properties*",
 ]
 
+# Realistic paths probed against native V2 ordered rules. V2 ``*`` already
+# matches ``/``, but a ``**/`` prefix does not match a root-level file, so
+# probing the V1 glob strings would hide gaps such as a readable ``.env``.
+V2_PATH_PROBES = [
+    ".env", "src/.env", ".env.local", "config/.env.production",
+    "cert/server.pem", "server.key", "client.p12", "client.pfx",
+    "store.jks", "store.keystore",
+    "deploy/id_rsa", "id_ed25519.pub", ".npmrc", "settings.xml",
+    ".pypirc", ".netrc", "gradle.properties", "app/gradle.properties",
+    "infra/terraform.tfvars", "infra/terraform.tfstate",
+    "terraform.tfstate.backup", "kubeconfig", "home/.kube/config",
+    "home/.aws/config", ".azure/accessTokens.json", ".docker/config.json",
+    "src/credentials.json", "secrets/token.txt",
+]
+
 PROMPT_MARKER = "[REDACTED]"
 UNSCOPED_BASH = {"*", "git diff*", "git log*", "cat *", "type *", "Get-Content *"}
 
@@ -130,7 +145,7 @@ def effective(rules: list[dict], action: str, probe: str) -> tuple[str | None, i
 def check_v2_rules(rules: list[dict]) -> list[str]:
     errors: list[str] = []
     for action in ("read", "edit"):
-        for p in REQUIRED_PATH_DENIES:
+        for p in V2_PATH_PROBES:
             if effective(rules, action, p)[0] != "deny":
                 errors.append(f"{action}: secret path {p} is not effectively denied")
     if effective(rules, "grep", "*")[0] != "deny":

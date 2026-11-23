@@ -132,6 +132,7 @@ Run the checks and tests (Windows form shown; use `python3` elsewhere):
 py -3 scripts/sync_copilot_adapters.py --check
 py -3 scripts/check_secret_baseline.py .opencode/agents
 py -3 -m unittest discover -s tests -p test_sync_copilot_adapters.py
+py -3 -m unittest discover -s tests -p test_smoke_test_team.py
 py -3 -m pytest tests/test_check_secret_baseline.py
 ```
 
@@ -161,9 +162,9 @@ Complete these steps before using the Agent Team Designer project.
 
 ### 1. Install OpenCode
 
-Use the [official OpenCode installation documentation](https://opencode.ai/docs/)
+Use the [official OpenCode V2 installation documentation](https://opencode.ai/v2/docs/)
 for the latest installation options. On Windows, OpenCode recommends [Windows
-Subsystem for Linux (WSL)](https://opencode.ai/docs/windows-wsl) for the best
+Subsystem for Linux (WSL)](https://opencode.ai/v2/docs/windows-wsl) for the best
 experience.
 
 For WSL, macOS, or Linux, install OpenCode with the official installer:
@@ -192,12 +193,15 @@ Check that the installation is available from a new terminal:
 opencode --version
 ```
 
+This repository targets OpenCode V2. The designer still supports generating
+teams for an explicitly confirmed OpenCode V1 target.
+
 ### 2. Connect an LLM provider
 
 OpenCode requires an LLM provider account and API key. From the OpenCode
 interface, run `/connect`, choose a provider, and follow its authentication
-steps. See the [provider documentation](https://opencode.ai/docs/providers/) for
-available providers. [OpenCode Zen](https://opencode.ai/docs/zen/) is the
+steps. See the [provider documentation](https://opencode.ai/v2/docs/providers/)
+for available providers. [OpenCode Zen](https://opencode.ai/v2/docs/zen/) is the
 recommended starting point if you do not already have a provider configured.
 
 ### 3. Start this project
@@ -238,14 +242,14 @@ For an overview of the project workflow and safety gates, read
 |---|---|
 | Name | `agent-team-designer` |
 | Mode | `primary` and project default |
-| Model | `github-copilot/claude-sonnet-5.5` (the Copilot profile uses `gpt-5.6-sol`) |
-| Temperature | `0.3` |
+| Model | `github-copilot/gpt-6.2-sol` |
 | Step budget | `60` |
 | Colour | `#ec4899` |
-| Edit access | `ask`; `.opencode/reports/**` allowed; secret paths denied |
-| Bash access | Denied by default; named Git, OpenCode, directory, script, and test commands only; secret-disclosure commands denied |
+| Edit access | `ask`; `.opencode/reports/*` allowed; secret paths denied |
+| Shell access | Denied by default; named Git, OpenCode, directory, script, and test commands only; secret-disclosure commands denied |
 | Delegation | Denied |
 | Skill access | Allow-list of its ten skills; all others denied |
+| External directories | `ask`, stated explicitly because OpenCode V2 allows them by default |
 
 Invoke it with `@agent-team-designer`, or start OpenCode in the repository
 directory (see "Start this project" above).
@@ -328,7 +332,7 @@ Each role receives:
 - A concise role-specific system prompt.
 - A GitHub Copilot model selected from live evidence.
 - A finite step budget.
-- Ordered, least-privilege permission patterns.
+- Ordered, least-privilege permission rules.
 - Only the skills required by its declared capabilities.
 - Bounded retries, blocker handling, doom-loop recovery, and final statuses.
 
@@ -348,8 +352,10 @@ Popularity and publisher reputation help shortlist candidates but do not prove
 security. Third-party skills require a security verdict before final
 recommendation or installation.
 
-Skills are referenced in place and never copied. Local `.opencode/skills` and
-`.github/skills` are added to `skills.paths` only when they exist. During
+Skills are referenced in place and never copied. Prefer canonical
+`.opencode/skills` definitions. Before adding `.github/skills` or any other
+source to the V2 `skills` array (V1: `skills.paths`), check for duplicate IDs
+and do not let Copilot adapters shadow canonical OpenCode skills. During
 installation the designer always asks whether to include additional skill
 repositories (for example your global skills or a shared team repository) and
 asks for their paths. Each path is confirmed back to you, you choose the skills,
@@ -365,7 +371,7 @@ The complete design is checked for:
 - Invalid or circular delegation.
 - Unavailable or unjustifiably expensive models.
 - Missing or unaudited essential skills.
-- Excessive edit, Bash, external-directory, task, or skill permissions.
+- Excessive edit, shell, external-directory, subagent, or skill permissions.
 - Inadequate step budgets, verification, completion, or recovery behaviour.
 
 Unresolved critical findings block configuration.
@@ -375,22 +381,34 @@ Unresolved critical findings block configuration.
 The generated configuration preserves compatible existing settings and wires:
 
 - Agents and prompt sources.
-- Models, modes, temperatures, and step budgets.
-- Task delegation and ordered permission rules.
+- Models, modes, model variants, and step budgets.
+- Delegation (`subagent` in V2; `task` in V1) and ordered permission rules.
 - Applicable local and global instructions.
-- Trusted local and global skill paths.
-- Doom-loop recovery without widening unsafe permissions.
+- Trusted local and global skill sources.
+- Stuck-agent recovery through the prompt protocol without widening unsafe
+  permissions; V2 has no `doom_loop` action.
 
 ### 7. Validate runtime behaviour
 
 Validation confirms:
 
 - JSON/JSONC syntax and current OpenCode schema compatibility.
-- Every agent, prompt, instruction, skill path, and delegation target resolves.
+- Every agent, instruction, skill source, and delegation target resolves.
 - Markdown agent definitions agree with runtime configuration.
-- Wildcard permission rules precede specific exceptions.
+- Ordered permission rules put the broad rule first and specific exceptions after.
+- V2 whole-path patterns such as `*.env` are used instead of `**/.env`.
 - Representative routing, denial, completion, and recovery paths behave as designed.
 - Any check that could not be executed is explicitly reported.
+
+Run the local static checks and synthetic permission probes from this repository
+with one-time approval. Replace `<absolute-project-path>` with the confirmed
+target path, use `python3` outside Windows, and use `--major 1` only for a V1 target:
+
+```powershell
+py -3 scripts/smoke_test_team.py --project "<absolute-project-path>" --major 2 --mode simulate
+```
+
+The runner does not start OpenCode or verify live model calls, tools, or handoffs.
 
 ## Specialist skills
 

@@ -33,11 +33,13 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
   generated or audited agent by default, without the user asking: `read` and
   `edit` denials for secret-bearing paths (`.env*`, keys, keystores,
   `settings.xml`, `gradle.properties`, `.npmrc`, `*.tfvars`, Terraform state,
-  kubeconfig, cloud credentials), `grep: deny`, shell and Git-history
-  denials after all bash allows, stack-specific additions (for example
+  kubeconfig, cloud credentials), a `grep` deny, shell and Git-history
+  denials after all shell allows, stack-specific additions (for example
   Gradle named-task allowlists with the `properties` task denied, and Maven
   deploy/release/effective-settings denied), and the redaction clause in
-  every prompt. Never relax it. Verify with
+  every prompt. Emit native OpenCode V2 ordered `permissions` rules for V2
+  targets, keeping the V1 `permission` map only for a team that must run on
+  OpenCode v1. Never relax it. Verify with
   `scripts/check_secret_baseline.py <agents-dir>`, run with the platform's
   Python 3 (`py -3` on Windows, `python3` elsewhere; no venv needed).
 - One clear job per agent
@@ -45,12 +47,14 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
 - Use `agent-team-creation` for end-to-end creation or restructuring of a runnable team
 - When the user requests `software-knowledge` on a new team, grant the
   orchestrator / primary and every agent assigned that skill edit access to
-  `knowledge/**` (including deletion of proven stale, duplicate, or disposable
+  `knowledge/*` (including deletion of proven stale, duplicate, or disposable
   superseded artefacts), plus the skill compile / lint scripts, even if that
-  agent otherwise has `edit: deny`. Also grant the orchestrator edit access to
-  the root `ARCHITECTURE.md` only, which the scaffold requires it to fill. Do not put
-  `"*": deny` on `edit` in the same object — it wins over `knowledge/**`
-  allow and blocks Write/StrReplace. Deny named application paths instead.
+  agent otherwise cannot edit the repository. Also grant the orchestrator edit
+  access to the root `ARCHITECTURE.md` only, which the scaffold requires it to
+  fill. In V2 rules are ordered and the last match wins: put the broad `edit`
+  deny or ask first, then the `knowledge/*` allow, and deny named application
+  paths afterwards instead of relying on a catch-all. Never express it as a V1
+  `"*": deny` map, where the catch-all wins and blocks Write/StrReplace.
   Do not install the skill without a working `knowledge/` write permission.
   Require reference checks before deletion, preserve historical decisions via
   deprecation and `superseded_by` unless they are proven duplicates, compile and
@@ -73,8 +77,8 @@ It designs, audits, and structures high-quality AI agents and multi-agent teams.
   repository-wide defaults.
 - Before changing or creating OpenCode configuration, use the `opencode-agent-config` skill and verify the configuration against the generated agent definitions.
 - Fail validation if any agent name exists both under `.opencode/agents/` and a
-  JSON/JSONC top-level `agent` object. Migrate all unique fields to Markdown and
-  remove the JSON entry; do not rely on precedence or merge behaviour.
+  JSON/JSONC top-level `agents` (V2) or `agent` (V1) object. Migrate all unique
+  fields to Markdown and remove the JSON entry; do not rely on merge behaviour.
 
 ## Cross-runtime adapter maintenance
 
@@ -124,7 +128,7 @@ instruction and skill sources:
    `~/.config/opencode/`, and `~/.github/` when they exist.
    - `~/.config/opencode/opencode.json` or `opencode.jsonc`.
    - `~/.config/opencode/agents/` and `~/.config/opencode/skills/`.
-   - Any global `instructions` and `skills.paths` configured there.
+   - Any global `instructions` and `skills` sources (V1: `skills.paths`).
 3. **Global GitHub/Copilot**
    - `~/.copilot/copilot-instructions.md` when present.
    - `~/.copilot/instructions/` and `~/.copilot/prompts/` when present.
@@ -134,8 +138,8 @@ instruction and skill sources:
 
 The generated `opencode.json` or `opencode.jsonc` must preserve compatible
 existing configuration and include applicable repository and global sources in
-its `instructions` and `skills.paths` settings, retaining access to both local
-and global scopes. Use absolute paths for global
+its `instructions` and V2 `skills` array (V1: `skills.paths`), retaining access
+to both local and global scopes. Use absolute paths for global
 sources when they are known. Use repository-relative paths only when OpenCode
 resolves them from the target repository. Do not blindly include every path:
 exclude secrets, credentials, session data, private keys, and unrelated

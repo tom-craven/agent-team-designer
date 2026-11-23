@@ -294,10 +294,14 @@ still exists, except as exact duplicates.
 
 ### Remove stale, duplicate, or superseded artefacts
 
-An agent assigned this skill must have scoped edit access to `knowledge/**`,
-including file deletion, without receiving shell deletion commands merely for
-this workflow. Delete only when repository evidence proves that an artefact is
-stale, an exact duplicate, or superseded with no historical value.
+An agent assigned this skill must have scoped edit access and a deletion-capable
+file tool for `knowledge/`. In V2, allow `edit` on `knowledge/*` after the broad
+edit rule and before secret-path denials, and verify that the role can use a
+tool such as `patch` (when available for its selected model). If the runtime
+lacks a permitted deletion tool, report `BLOCKED` for deletion; never grant or
+use shell deletion as a workaround. Delete only when repository evidence proves
+that the artefact is stale, an exact duplicate, or superseded with no historical
+value.
 
 1. Identify the canonical replacement or document why no replacement is needed.
 2. Search IDs, inbound references, and typed edges before deletion.

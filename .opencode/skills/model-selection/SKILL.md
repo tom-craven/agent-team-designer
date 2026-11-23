@@ -44,7 +44,7 @@ models; the cheapest suitable Copilot model is the cost-saving option.
 - Ignore per-token price when a near-equal cheaper model exists
 - Treat Copilot Fusion as a model with a benchmark score, invent a Fusion slug,
   or assume it is available in OpenCode because it is in Copilot CLI (Step 1c)
-- Recommend Fusion for an agent with `edit` or `bash` allowed, or for the
+- Recommend Fusion for an agent with `edit` or `shell` (V1: `bash`) allowed, or for the
   orchestrator, senior engineer, reviewer or security roles, without an explicit
   user-accepted override
 - Quote the Fusion paid-plan discount without its expiry date
@@ -196,7 +196,7 @@ the model pool change).
 **Role eligibility.** Candidate (Standard, High only where justified): explorer,
 triage, summariser, docs writer, PM, high-volume low-risk, and the junior
 engineer after user confirmation. Not by default: orchestrator, senior engineer,
-reviewer, security, or any agent with `edit` or `bash`. Always name a pinned
+reviewer, security, or any agent with `edit` or `shell` (V1: `bash`). Always name a pinned
 Copilot fallback and never place Fusion on a role without one.
 
 **Pilot gate.** Compare with the best pinned alternative on first-pass success,
@@ -349,8 +349,10 @@ recommendation provisional.
 - Copilot enablement is org-controlled — a model may be listed by GitHub but
   disabled for the user's org. If a recommendation fails at runtime, fall back
   to the cheaper alternative and tell the user why.
-- Prefer models with confirmed tool-calling support for any agent that uses
-  `edit`, `bash`, or `task`.
+- Prefer models with confirmed tool-calling support for agents using `edit`,
+  `shell`, or `subagent` (V1: `edit`, `bash`, or `task`). If a role requires
+  file deletion, verify that its chosen model exposes a deletion-capable file
+  tool under the target runtime; general tool-calling support is not sufficient.
 - Reviewers and security agents rely on explicit checklists and a suitable
   `reasoningEffort`, not a `temperature` value (see "Never do").
 - There is deliberately no cached catalogue snapshot in this skill. GitHub
