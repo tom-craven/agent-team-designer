@@ -414,6 +414,19 @@ Python scripts, such as `software-knowledge`):**
 
 ### 5. Audit the complete design
 
+- **Session-scoped safety confirmation (required for any team that runs build or
+  test tools).** Generate prompts so the user is asked for the trusted-checkout
+  and isolated-environment confirmation exactly once per session. The
+  orchestrator asks, remembers it in session context only, and relays it in
+  every handoff to agents that run builds. Subagents have no memory, so they
+  accept the relay and never ask the user again. The team's own edits, commits
+  and new handoffs, commands or child sessions are never a material change.
+  Reconfirm only when the user switches to a checkout or branch the team did not
+  prepare, build files or the wrapper/plugins change outside reviewed team work,
+  the user says the environment changed, or no confirmation is in the handoff.
+  The confirmation never replaces per-command tool approval. `agent-audit`
+  treats a "reconfirm when inputs change" rule that the team's own edits would
+  trigger as a Needs Improvement finding.
 - When the team has an independent reviewer or verifier needing changed lines,
   load `sanitized-diff` and install its script for the evidence producer instead
   of granting any raw `git diff`.

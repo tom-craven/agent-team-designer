@@ -52,6 +52,8 @@ Systematically review agents and produce actionable findings.
 
 ## Team-level gate
 
+- Build-running teams ask the safety confirmation once per session and relay it;
+  a reconfirm trigger that the team's own edits would fire is Needs Improvement.
 After reviewing agents individually, verify the assembled team:
 
 - covers required project capabilities without duplicate ownership;
