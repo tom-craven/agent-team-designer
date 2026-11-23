@@ -1,6 +1,6 @@
 ---
 name: sanitized-diff
-description: Give review and verification gates a redacted, snapshot-identified git diff through one fixed, argument-free script instead of raw git diff. Use when a team has an independent reviewer or verifier that needs changed lines, or when an agent cannot be allowed git diff, git show or git log -p. Does not cover running builds or approving changes.
+description: Give review and verification gates a redacted, snapshot-identified, paged git diff through one fixed script with exact page arguments instead of raw git diff. Use when a team has an independent reviewer or verifier that needs changed lines, or when an agent cannot be allowed git diff, git show or git log -p. Does not cover running builds or approving changes.
 ---
 
 # Sanitized diff
@@ -20,8 +20,8 @@ working tree against `HEAD` only).
 
 ## What the script does
 
-`scripts/sanitized_diff.py` takes **no arguments** and must run from the
-repository root.
+`scripts/sanitized_diff.py` takes no argument or exactly `--page N` (a positive
+integer; anything else is `BLOCKED`) and must run from the repository root.
 
 - Diff of working tree (staged and unstaged) against `HEAD`, rename detection,
   no external diff driver, no text conversion, no colour.
@@ -35,10 +35,13 @@ repository root.
 - Optional scope file `scripts/sanitized_diff.paths` (one glob per line). Paths
   outside it are listed by name only.
 - Fails closed: on any error it prints only `BLOCKED: ...` to stderr, exit 2.
-- Output is bounded: above 1200 diff lines the diff is withheld (inventory and
-  snapshot ID only, marked NOT approvable, exit 3) so one tool read always holds
-  the whole evidence. Fix by narrowing `scripts/sanitized_diff.paths`, never by
-  reading a saved output file. The closing `END SNAPSHOT` line repeats the ID.
+- Output is paged: the diff is split at file boundaries into pages of about 800
+  lines. Every page carries the same master snapshot ID, `PAGE k of N`, a page
+  hash, the complete inventory and a page map, and ends with `END SNAPSHOT`.
+  A review is complete only when every page 1..N was read under the same ID.
+  A change over 8 pages, or one file over 2000 diff lines, is withheld (exit 3,
+  NOT approvable): narrow `scripts/sanitized_diff.paths` or split the work.
+  Never read a saved tool-output file to get around truncation.
 
 Redaction is pattern-based, not a guarantee. Reviewers still treat the diff as
 sensitive and never repeat apparent secrets.
@@ -67,16 +70,20 @@ strings such as checksums may be over-redacted; secrets that match no pattern
    build and CI files); an unscoped run diffs unrelated docs and new files and
    can exceed the output limit.
 2. Grant **only the evidence producer** these exact shell allows, before the
-   secret-baseline shell denials. No wildcard, no arguments:
-   - `py -3 scripts/sanitized_diff.py`
-   - `python3 scripts/sanitized_diff.py`
+   secret-baseline shell denials. No wildcard and no free-form arguments:
+   `py -3 scripts/sanitized_diff.py` and `python3 scripts/sanitized_diff.py`,
+   plus one exact allow per page, `... --page 1` through `... --page 8`, for
+   both launchers (18 rules).
    Each shell call is one stand-alone command (no `cd ... &&`); set the working
    directory to the repository root.
 3. Deny `edit` on `scripts/*` for every agent so the sanitizer cannot be altered.
    In V2 put the deny after any broader edit allow.
-4. Prompts: the producer runs the script once per snapshot and hands the full
-   output, with the snapshot ID, to the reviewer and then the verifier. Both
+4. Prompts: the producer runs every page once per snapshot and hands all pages,
+   with the master snapshot ID, to the reviewer and then the verifier. Both
    cite the ID. Any later change, or a different ID, invalidates both gates.
+   Tell the team the diff is paged, so change size is not a gate (prefer small,
+   focused changes anyway); an oversized change is withheld and cannot be
+   approved.
    If the script returns `BLOCKED`, report it once and stop; never fall back to
    `git diff`, and never reconstruct a diff from current files.
 5. Keep the denials on `git diff*`, `git show*` and `git log -p*`.
@@ -85,7 +92,7 @@ strings such as checksums may be over-redacted; secrets that match no pattern
 
 ## Audit checks
 
-- Only the producer holds the script allow; it is exact and argument-free.
+- Only the producer holds the script allows; each is exact (no wildcard).
 - `scripts/*` is edit-denied for every agent.
 - No agent has an unrestricted `git diff`/`git show`.
 - Reviewer and verifier prompts require the snapshot ID.

@@ -37,6 +37,9 @@ class SanitizedDiffTests(unittest.TestCase):
         p = subprocess.run([sys.executable, SCRIPT], cwd=cwd or self.d, capture_output=True, text=True)
         return p
 
+    def out_args(self, *args):
+        return subprocess.run([sys.executable, SCRIPT, *args], cwd=self.d, capture_output=True, text=True)
+
     def test_removed_secret_is_redacted(self):
         self.w("spec.yaml", "a: 2\n")
         o = self.out().stdout
@@ -109,8 +112,44 @@ class SanitizedDiffTests(unittest.TestCase):
         lines = self.out().stdout.strip().splitlines()
         self.assertEqual(lines[-1].split()[2], lines[0].split()[1])
 
+    def test_large_change_is_paged_under_one_master_snapshot(self):
+        self.w("a.txt", "\n".join(f"a{i}" for i in range(700)) + "\n")
+        self.w("b.txt", "\n".join(f"b{i}" for i in range(700)) + "\n")
+        p1 = self.out_args("--page", "1")
+        p2 = self.out_args("--page", "2")
+        self.assertEqual(p1.returncode, 0)
+        self.assertEqual(p2.returncode, 0)
+        self.assertEqual(p1.stdout.splitlines()[0], p2.stdout.splitlines()[0])
+        self.assertIn("PAGE: 1 of 2", p1.stdout)
+        self.assertIn("PAGE: 2 of 2", p2.stdout)
+        self.assertIn("+a5", p1.stdout)
+        self.assertNotIn("+b5", p1.stdout)
+        self.assertIn("+b5", p2.stdout)
+        self.assertIn("2\tb.txt", p1.stdout)  # page map is on every page
+
+    def test_default_run_equals_page_one(self):
+        self.w("spec.yaml", "a: 2\n")
+        self.assertEqual(self.out().stdout, self.out_args("--page", "1").stdout)
+
+    def test_page_out_of_range_and_bad_arguments_fail_closed(self):
+        self.w("spec.yaml", "a: 2\n")
+        for args in (("--page", "2"), ("--page", "0"), ("--page", "x"), ("--page",),
+                     ("HEAD",), ("--page", "1", "extra"), ("--all",)):
+            p = self.out_args(*args)
+            self.assertEqual(p.returncode, 2, args)
+            self.assertEqual(p.stdout, "", args)
+            self.assertIn("BLOCKED", p.stderr, args)
+
+    def test_too_many_pages_is_withheld(self):
+        for n in range(10):  # 10 files of 700 lines -> 10 pages > 8
+            self.w(f"f{n}.txt", "\n".join(f"x{n}-{i}" for i in range(700)) + "\n")
+        p = self.out()
+        self.assertEqual(p.returncode, 3)
+        self.assertIn("NOT approvable", p.stdout)
+        self.assertNotIn("x0-5", p.stdout)
+
     def test_oversized_diff_is_withheld_not_truncated(self):
-        self.w("big.txt", "\n".join(f"line {i}" for i in range(1500)) + "\n")
+        self.w("big.txt", "\n".join(f"line {i}" for i in range(2500)) + "\n")
         p = self.out()
         self.assertEqual(p.returncode, 3)
         self.assertIn("NOT approvable", p.stdout)

@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Print a redacted, snapshot-identified diff of the working tree against HEAD.
 
-Takes NO arguments. Run it from the repository root:
-    py -3 scripts/sanitized_diff.py        (Windows)
-    python3 scripts/sanitized_diff.py      (elsewhere)
+Run it from the repository root, with no argument or exactly `--page N`:
+    py -3 scripts/sanitized_diff.py            (Windows; same as --page 1)
+    py -3 scripts/sanitized_diff.py --page 2
+    python3 scripts/sanitized_diff.py --page 2 (elsewhere)
+
+Large diffs are split into pages at file boundaries. Every page carries the same
+master SNAPSHOT ID (over the whole change), `PAGE k of N`, a page hash and the
+complete changed-path inventory with a page map. A review is complete only when
+every page 1..N was read under the same master ID.
 
 Reviewable scope: optional file `scripts/sanitized_diff.paths` next to this
 script, one glob per line (`#` comments). Absent file = every non-protected path.
 
 Fail closed: any internal error prints nothing but a BLOCKED line, exit 2.
+A change too large to page (see limits) is withheld, exit 3.
 Dependency-free; the only subprocess is git with fixed, hard-coded arguments.
 """
 import fnmatch
@@ -28,8 +35,10 @@ PROTECTED = [
     "*.docker/config.json", "*credentials*", "*secrets/*", "*auth.json",
     ".git/*",
 ]
-MAX_BYTES = 1_000_000  # larger files are listed, not diffed
-MAX_LINES = 1200  # above this the diff is withheld: one tool read must hold it all
+MAX_BYTES = 1_000_000  # larger untracked files are listed, not diffed
+PAGE_LINES = 800       # target diff lines per page (cut at file boundaries)
+MAX_PAGES = 8          # more pages than this: the change is withheld
+MAX_BLOCK_LINES = 2000  # one file's diff above this: the change is withheld
 
 PEM = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(-----END [A-Z ]*PRIVATE KEY-----|$)", re.S)
 TOKEN = re.compile(
@@ -122,7 +131,30 @@ def sanitize_text(text):
     return "\n".join(esc(redact(l)) for l in text.split("\n"))
 
 
+def parse_args(argv):
+    """Accept exactly no argument, or `--page N` with N a positive integer."""
+    if not argv:
+        return 1
+    if len(argv) == 2 and argv[0] == "--page" and re.fullmatch(r"[1-9][0-9]{0,2}", argv[1]):
+        return int(argv[1])
+    raise RuntimeError("usage: sanitized_diff.py [--page N]")
+
+
+def paginate(blocks):
+    """Greedy split at file boundaries; a file is never split across pages."""
+    pages, cur, cur_lines = [], [], 0
+    for blk in blocks:
+        if cur and cur_lines + blk["lines"] > PAGE_LINES:
+            pages.append(cur)
+            cur, cur_lines = [], 0
+        cur.append(blk)
+        cur_lines += blk["lines"]
+    pages.append(cur)
+    return pages
+
+
 def main():
+    wanted = parse_args(sys.argv[1:])
     root = git("rev-parse", "--show-toplevel").decode().strip()
     if os.path.normcase(os.path.realpath(os.getcwd())) != os.path.normcase(os.path.realpath(root)):
         raise RuntimeError("run from the repository root")
@@ -142,7 +174,11 @@ def main():
     untracked = [x for x in git("ls-files", "--others", "--exclude-standard", "-z").decode("utf-8", "replace").split("\0") if x]
     changes += [("?", u, None) for u in untracked]
 
-    inventory, body, omitted, withheld = [], [], [], []
+    inventory, blocks, omitted, withheld = [], [], [], []
+
+    def add_block(shown, text):
+        blocks.append({"path": shown, "text": text, "lines": text.count("\n") + 1})
+
     for st, rawpath, old in changes:
         path = rawpath  # real path for file access; `shown` is the escaped form
         shown = esc(path, CTRL_PATH)
@@ -156,53 +192,80 @@ def main():
             continue
         inventory.append(f"{st}\t{shown}" + (f"\t(from {esc(old, CTRL_PATH)})" if old else ""))
         if st == "D":
-            body.append(f"--- deleted: {shown} (content not shown)")
+            add_block(shown, f"--- deleted: {shown} (content not shown)")
             continue
         if st == "?":
             full = os.path.join(root, path)
             if os.path.islink(full) or not os.path.isfile(full) or os.path.getsize(full) > MAX_BYTES:
-                body.append(f"+++ new (not diffed: symlink, non-file or >{MAX_BYTES} bytes): {shown}")
+                add_block(shown, f"+++ new (not diffed: symlink, non-file or >{MAX_BYTES} bytes): {shown}")
                 continue
             with open(full, "rb") as f:
                 data = f.read()
             if b"\0" in data:
-                body.append(f"+++ new binary: {shown}")
+                add_block(shown, f"+++ new binary: {shown}")
                 continue
             txt = sanitize_text(data.decode("utf-8", "replace"))
-            body.append(f"+++ new file: {shown}")
-            body.extend("+" + l for l in txt.split("\n"))
+            add_block(shown, f"+++ new file: {shown}\n" + "\n".join("+" + l for l in txt.split("\n")))
             continue
         out = git("diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", "HEAD", "--", path).decode("utf-8", "replace")
         if "Binary files" in out:
-            body.append(f"~~~ binary changed: {shown}")
+            add_block(shown, f"~~~ binary changed: {shown}")
         else:
-            body.append(sanitize_text(out).rstrip("\n"))
+            add_block(shown, sanitize_text(out).rstrip("\n"))
 
-    report = "\n".join(body) + "\n"
+    report = "\n".join(b["text"] for b in blocks) + "\n"
     inv = "\n".join(sorted(inventory)) + "\n"
     # Withheld and out-of-scope files contribute a content hash to the snapshot
     # (never printed), so changing them still invalidates earlier approvals.
     wh = "\n".join(sorted(f"{p}:{filehash(root, p)}" for p in withheld))
     snap = hashlib.sha256((head + "\n" + inv + report + "\n" + wh).encode("utf-8", "replace")).hexdigest()[:16]
     sid = f"{head[:12]}-{snap}"
-    nlines = report.count("\n")
-    too_big = nlines > MAX_LINES
-    print(f"SNAPSHOT: {sid}")
-    print(f"BASELINE: HEAD {head}")
-    print("SCOPE: " + ("all non-protected paths" if pats is None else ", ".join(pats)))
-    print("REDACTION: pattern-based on added and removed lines; not a guarantee, human review still required")
+    pages = paginate(blocks)
+    npages = len(pages)
+    total = sum(b["lines"] for b in blocks)
+    too_big = npages > MAX_PAGES or any(b["lines"] > MAX_BLOCK_LINES for b in blocks)
+
+    def header():
+        print(f"SNAPSHOT: {sid}")
+        print(f"BASELINE: HEAD {head}")
+        print("SCOPE: " + ("all non-protected paths" if pats is None else ", ".join(pats)))
+        print("REDACTION: pattern-based on added and removed lines; not a guarantee, human review still required")
+
+    if too_big:
+        header()
+        print("--- CHANGED PATHS (complete) ---")
+        print(inv, end="")
+        if omitted:
+            print("--- OUT OF SCOPE (names only, no content) ---")
+            print("\n".join(sorted(omitted)))
+        print(f"--- DIFF NOT SHOWN: {total} lines in {npages} pages exceeds the limit "
+              f"({MAX_PAGES} pages, {MAX_BLOCK_LINES} lines per file); narrow scripts/sanitized_diff.paths ---")
+        print(f"END SNAPSHOT: {sid} (diff withheld, NOT approvable)")
+        sys.exit(3)
+    if wanted > npages:
+        raise RuntimeError(f"page {wanted} out of range (1..{npages})")
+
+    page = pages[wanted - 1]
+    page_text = "\n".join(b["text"] for b in page) + "\n"
+    page_hash = hashlib.sha256(page_text.encode("utf-8", "replace")).hexdigest()[:12]
+    page_map = []
+    for idx, pg in enumerate(pages, 1):
+        for b in pg:
+            page_map.append(f"{idx}\t{b['path']}")
+
+    header()
+    print(f"PAGE: {wanted} of {npages}")
+    print(f"PAGE HASH: {page_hash}")
     print("--- CHANGED PATHS (complete) ---")
     print(inv, end="")
     if omitted:
         print("--- OUT OF SCOPE (names only, no content) ---")
         print("\n".join(sorted(omitted)))
-    if too_big:
-        print(f"--- DIFF NOT SHOWN: {nlines} lines exceeds {MAX_LINES}; narrow scripts/sanitized_diff.paths ---")
-        print(f"END SNAPSHOT: {sid} (diff withheld, NOT approvable)")
-        sys.exit(3)
-    print("--- SANITIZED DIFF ---")
-    print(report, end="")
-    print(f"END SNAPSHOT: {sid} ({nlines} diff lines)")
+    print("--- PAGE MAP (page, path) ---")
+    print("\n".join(page_map) if page_map else "(no in-scope changes)")
+    print(f"--- SANITIZED DIFF (page {wanted} of {npages}) ---")
+    print(page_text, end="")
+    print(f"END SNAPSHOT: {sid} (page {wanted}/{npages}, {page_text.count(chr(10))} diff lines)")
 
 
 if __name__ == "__main__":

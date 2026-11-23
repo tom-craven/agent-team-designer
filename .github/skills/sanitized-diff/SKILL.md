@@ -1,6 +1,6 @@
 ---
 name: sanitized-diff
-description: "Give review and verification gates a redacted, snapshot-identified git diff through one fixed, argument-free script instead of raw git diff. Use when a team has an independent reviewer or verifier that needs changed lines, or when an agent cannot be allowed git diff, git show or git log -p. Does not cover running builds or approving changes."
+description: "Give review and verification gates a redacted, snapshot-identified, paged git diff through one fixed script with exact page arguments instead of raw git diff. Use when a team has an independent reviewer or verifier that needs changed lines, or when an agent cannot be allowed git diff, git show or git log -p. Does not cover running builds or approving changes."
 ---
 
 # sanitized-diff
